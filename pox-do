@@ -1,0 +1,14 @@
+#!/bin/bash
+
+BASEPATH=`dirname "$0"`
+
+if [ ! -e .init-done ]
+then
+	echo -en "Initializing IPFS daemon..."
+	src/init/init.sh 2>&1 >> /dev/null
+	echo "Done"
+fi
+
+source $BASEPATH/config
+
+python3 src/do.py -p $PUBLIC_KEY -k $PRIVATE_KEY $@

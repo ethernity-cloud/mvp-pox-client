@@ -1,0 +1,4 @@
+config
+certs/*
+.init-done
+.tmp
