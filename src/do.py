@@ -6,9 +6,6 @@ import ipfshttpclient
 import ntpath
 import os
 import sys
-import json
-import re
-from pprint import pprint
 from datetime import datetime
 
 from web3 import Web3
@@ -215,26 +212,14 @@ class etnyPoX:
                 print(datetime.now(),"Certificate information is shown below this line")
                 print('')
                 print('')
-                etnyPoX.writeToCert(etnyPoX.dohash,'#################################################################################################################')
-                etnyPoX.writeToCert(etnyPoX.dohash,'########################################### bloxberg PoX Certificate ############################################')
-                etnyPoX.writeToCert(etnyPoX.dohash,'#################################################################################################################')
-                etnyPoX.writeToCert(etnyPoX.dohash,'######                                                                                                     ######')
-                etnyPoX.writeToCert(etnyPoX.dohash,'######  [INFO] Contract address: 0x99738e909a62e2e4840a59214638828E082A9A2b                                ######') 
-                etnyPoX.writeToCert(etnyPoX.dohash,'######  [INFO] DO request transaction: ' + etnyPoX.dohash +'  ######')
-                etnyPoX.writeToCert(etnyPoX.dohash,'######  [INFO] PoX processing order: ' + str(order).zfill(16) +'                                                      ######')
-                etnyPoX.writeToCert(etnyPoX.dohash,'######                                                                                                     ######')
-                etnyPoX.writeToCert(etnyPoX.dohash,'######  [INPUT] public image hash: ' + etnyPoX.imageHash + '             ######')
-                etnyPoX.writeToCert(etnyPoX.dohash,'######  [INPUT] public script hash: ' + etnyPoX.scriptHash + '                         ######')
-                etnyPoX.writeToCert(etnyPoX.dohash,'######  [INPUT] public fileset hash: ' + etnyPoX.filesetHash + '                        ######')
-
-
+                
                 transaction = etnyPoX.w3.eth.getTransaction(etnyPoX.dohash)
                 block = etnyPoX.w3.eth.getBlock(transaction['blockNumber'])
                 blocktimestamp = (block['timestamp'])
                 blockdatetime = datetime.fromtimestamp(blocktimestamp)
-                etnyPoX.writeToCert(etnyPoX.dohash,'######  [INPUT] timestamp: ' + str(blockdatetime) + ' [' + str(blocktimestamp) + ']                                                ######')
                 endBlockNumber = etnyPoX.w3.eth.blockNumber
                 startBlockNumber = endBlockNumber - 10
+                
                 for i in range(endBlockNumber, startBlockNumber, -1):
                     block = etnyPoX.w3.eth.getBlock(i,True)
                     if block is not None and block.transactions is not None:
@@ -250,12 +235,26 @@ class etnyPoX:
                                     resultblock = etnyPoX.w3.eth.getBlock(transaction['blockNumber'])
                                     resultblocktimestamp = (block['timestamp'])
                                     resultblockdatetime = datetime.fromtimestamp(resultblocktimestamp)
-                etnyPoX.writeToCert(etnyPoX.dohash,'######  [OUTPUT] public result hash: ' + result + '                        ######')
-                etnyPoX.writeToCert(etnyPoX.dohash,'######  [OUTPUT] result timestamp: ' + str(resultblockdatetime) + ' [' + str(resultblocktimestamp) + ']                                        ######')
-                etnyPoX.writeToCert(etnyPoX.dohash,'######                                                                                                     ######')
-                etnyPoX.writeToCert(etnyPoX.dohash,'#################################################################################################################')
-                etnyPoX.writeToCert(etnyPoX.dohash,'#################################################################################################################')
-                etnyPoX.writeToCert(etnyPoX.dohash,'#################################################################################################################')
+
+                etnyPoX.writeToCert(etnyPoX.dohash,'#############################################################################################################')
+                etnyPoX.writeToCert(etnyPoX.dohash,'######################################### bloxberg PoX Certificate ##########################################')
+                etnyPoX.writeToCert(etnyPoX.dohash,'#############################################################################################################')
+                etnyPoX.writeToCert(etnyPoX.dohash,'######                                                                                                 ######')
+                etnyPoX.writeToCert(etnyPoX.dohash,'######  [INFO] contract address: 0x99738e909a62e2e4840a59214638828E082A9A2b                            ######')
+                etnyPoX.writeToCert(etnyPoX.dohash,'######  [INFO] input transaction: ' + etnyPoX.dohash + '   ######')
+                etnyPoX.writeToCert(etnyPoX.dohash,'######  [INFO] output transaction: ' + str(resulttransactionhash.hex()) + '  ######')
+                etnyPoX.writeToCert(etnyPoX.dohash,'######  [INFO] PoX processing order: ' + str(order).zfill(16) +'                                                  ######')
+                etnyPoX.writeToCert(etnyPoX.dohash,'######                                                                                                 ######')
+                etnyPoX.writeToCert(etnyPoX.dohash,'######  [INPUT] public image: ' + etnyPoX.imageHash + '              ######')
+                etnyPoX.writeToCert(etnyPoX.dohash,'######  [INPUT] public script: ' + etnyPoX.scriptHash + '                          ######')
+                etnyPoX.writeToCert(etnyPoX.dohash,'######  [INPUT] public fileset: ' + etnyPoX.filesetHash + '                         ######')
+                etnyPoX.writeToCert(etnyPoX.dohash,'######  [INPUT] timestamp: ' + str(blockdatetime) + ' [' + str(blocktimestamp) + ']                                            ######')
+                etnyPoX.writeToCert(etnyPoX.dohash,'######  [OUTPUT] public result: ' + result + '                         ######')
+                etnyPoX.writeToCert(etnyPoX.dohash,'######  [OUTPUT] timestamp: ' + str(resultblockdatetime) + ' [' + str(resultblocktimestamp) + ']                                           ######')
+                etnyPoX.writeToCert(etnyPoX.dohash,'######                                                                                                 ######')
+                etnyPoX.writeToCert(etnyPoX.dohash,'#############################################################################################################')
+                etnyPoX.writeToCert(etnyPoX.dohash,'#############################################################################################################')
+                etnyPoX.writeToCert(etnyPoX.dohash,'#############################################################################################################')
 
                 print('')
                 print('')
