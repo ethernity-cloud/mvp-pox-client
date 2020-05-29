@@ -7,6 +7,9 @@ then
 	echo -en "Initializing IPFS daemon..."
 	src/init/init.sh 2>&1 >> /dev/null
 	echo "Done"
+else
+	echo "Cleaning up IPFS..."
+	src/init/clean.sh 2>&1 >> /dev/null
 fi
 
 source $BASEPATH/config
