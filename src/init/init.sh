@@ -8,6 +8,5 @@ cd go-ipfs
 ./ipfs daemon 2>&1 >> /dev/null &
 sleep 3
 cd ../..
+mkdir certs
 touch .init-done
-
-
