@@ -87,7 +87,7 @@ class etnyPoX:
         etnyPoX.acct = Account.privateKeyToAccount(etnyPoX.privatekey)
         etnyPoX.etny = etnyPoX.w3.eth.contract(address=etnyPoX.w3.toChecksumAddress("0x99738e909a62e2e4840a59214638828E082A9A2b"), abi=etnyPoX.contract_abi)
 
-        etnyPoX.dorequest = etnyPoX.etny.functions._getDORequestsCount().call() - 3;
+        etnyPoX.dorequest = 0;
         etnyPoX.dohash = 0;
 
 
@@ -107,7 +107,6 @@ class etnyPoX:
             return res['Hash']
 
         return None
-
 
     def addDORequest():
         nonce = etnyPoX.w3.eth.getTransactionCount(etnyPoX.address)
@@ -129,23 +128,23 @@ class etnyPoX:
         hash = etnyPoX.w3.toHex(etnyPoX.w3.sha3(signed_txn.rawTransaction))
 
         try:
-            etnyPoX.w3.eth.waitForTransactionReceipt(hash)
+            receipt = etnyPoX.w3.eth.waitForTransactionReceipt(hash)
+            processed_logs = etnyPoX.etny.events._addDORequestEV().processReceipt(receipt)
+            etnyPoX.dorequest = processed_logs[0].args._rowNumber
         except:
             raise
         else:
-            print(datetime.now(), "Request created successfuly!")
+            print(datetime.now(), "Request %s created successfuly!" % etnyPoX.dorequest)
             print(datetime.now(), "TX Hash: %s" % hash)
             etnyPoX.dohash = hash
 
     def waitForProcessor():
         while True:
-            doReq = etnyPoX.findNextDORequest()
-            count = etnyPoX.etny.functions._getDPRequestsCount().call()
-            for i in range(count-3, count):
-                dpReq = etnyPoX.etny.caller()._getDPRequest(i)
-                order = etnyPoX.findOrder(doReq, i)
+                order = etnyPoX.findOrder(etnyPoX.dorequest)
                 if order is not None:
                     etnyPoX.approveOrder(order);
+                else:
+                    time.sleep(5)
         return None
 
     def approveOrder(order):
@@ -277,31 +276,15 @@ class etnyPoX:
         f.close()
         print(str)
 
-    def findOrder(doReq, dpReq):
+    def findOrder(doReq):
         sys.stdout.write('.')
         sys.stdout.flush()
-        #print("Finding order match for %s and %s" % (doReq, dpReq))
         count=etnyPoX.etny.functions._getOrdersCount().call()
-        for i in range(count-3, count):
-            if i == count - 1:
-                time.sleep(3)
+        for i in range(count-1, count-5, -1):
             order = etnyPoX.etny.caller()._getOrder(i)
-            if order[2] == doReq and order[3] == dpReq and order[4] == 0:
+            if order[2] == etnyPoX.dorequest and order[4] == 0:
                 return i
         return None
-
-
-    def findNextDORequest():
-        count = etnyPoX.etny.functions._getDORequestsCount().call()
-        if etnyPoX.dorequest >= count:
-            etnyPoX.dorequest = count-3;
-        req = etnyPoX.etny.caller()._getDORequest(etnyPoX.dorequest)
-        if req[0] == etnyPoX.address:
-            etnyPoX.dorequest += 1;
-            return etnyPoX.dorequest-1;
-        etnyPoX.dorequest += 1;
-            
-    
 
 if __name__ == '__main__':
     app = etnyPoX()
