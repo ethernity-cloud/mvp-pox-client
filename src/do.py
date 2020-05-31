@@ -21,8 +21,8 @@ from web3.exceptions import (
 class etnyPoX:
     def __init__(self):
         parser = argparse.ArgumentParser(description = "Ethernity PoX request")
-        parser.add_argument("-p", "--publickey", help = "Etherem publickey (0x0x0123456789abcDEF0123456789abcDEF01234567)", required = True)
-        parser.add_argument("-k", "--privatekey", help = "Etherem privatekey (0x0123456789abcDEF0123456789abcDEF0123456789abcDEF0123456789abcDEF)", required = True)
+        parser.add_argument("-a", "--address", help = "Etherem address (0x627306090abab3a6e1400e9345bc60c78a8bef57)", required = True)
+        parser.add_argument("-k", "--privatekey", help = "Etherem privatekey (c87509a1c067bbde78beb793e6fa76530b6382a4c0241e5e4a9ec0a0f44dc0d3)", required = True)
         parser.add_argument("-c", "--cpu", help = "Number of CPUs (count)", required = False, default = "1")
         parser.add_argument("-m", "--memory", help = "Amount of memory (GB)", required = False, default = "1")
         parser.add_argument("-d", "--storage", help = "Amount of storage (GB)", required = False, default = "40")
@@ -40,8 +40,8 @@ class etnyPoX:
         argument = parser.parse_args()
         status = False
 
-        if argument.publickey:
-            etnyPoX.publickey = format(argument.publickey)
+        if argument.address:
+            etnyPoX.address = format(argument.address)
             status = True
         if argument.privatekey:
             etnyPoX.privatekey = format(argument.privatekey)
@@ -110,7 +110,7 @@ class etnyPoX:
 
 
     def addDORequest():
-        nonce = etnyPoX.w3.eth.getTransactionCount(etnyPoX.publickey)
+        nonce = etnyPoX.w3.eth.getTransactionCount(etnyPoX.address)
 
         etnyPoX.scriptHash = etnyPoX.uploadIPFS(etnyPoX.script)
         etnyPoX.filesetHash = etnyPoX.uploadIPFS(etnyPoX.fileset, True)
@@ -149,7 +149,7 @@ class etnyPoX:
         return None
 
     def approveOrder(order):
-        nonce = etnyPoX.w3.eth.getTransactionCount(etnyPoX.publickey)
+        nonce = etnyPoX.w3.eth.getTransactionCount(etnyPoX.address)
 
         unicorn_txn = etnyPoX.etny.functions._approveOrder(order).buildTransaction({
             'gas': 1000000,
@@ -179,7 +179,7 @@ class etnyPoX:
         while True:
             result = 0
             try:
-                result = etnyPoX.etny.caller(transaction={'from': etnyPoX.publickey})._getResultFromOrder(order)
+                result = etnyPoX.etny.caller(transaction={'from': etnyPoX.address})._getResultFromOrder(order)
             except:
                 sys.stdout.write('.')
                 sys.stdout.flush()
@@ -296,7 +296,7 @@ class etnyPoX:
         if etnyPoX.dorequest >= count:
             etnyPoX.dorequest = count-3;
         req = etnyPoX.etny.caller()._getDORequest(etnyPoX.dorequest)
-        if req[0] == etnyPoX.publickey:
+        if req[0] == etnyPoX.address:
             etnyPoX.dorequest += 1;
             return etnyPoX.dorequest-1;
         etnyPoX.dorequest += 1;
