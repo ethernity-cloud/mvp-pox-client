@@ -6,6 +6,7 @@ import ipfshttpclient
 import ntpath
 import os
 import sys
+import socket
 from datetime import datetime
 
 from web3 import Web3
@@ -29,7 +30,7 @@ class etnyPoX:
         parser.add_argument("-b", "--bandwidth", help = "Amount of bandwidth (GB)", required = False, default = "1")
         parser.add_argument("-t", "--duration", help = "Amount of time allocated for task (minutes)", required = False, default = "60")
         parser.add_argument("-n", "--instances", help = "Number of instances to run simmultaneously (count)", required = False, default = "1")
-        parser.add_argument("-i", "--image", help = "IPFS location of docker repository in format [HASH:container]",  required = False, default = "QmbpKmmCyfbNpGaP9AyLb9EVkSSGpAyCMBcSqhWBQBKXCf:etny-pynithy")
+        parser.add_argument("-i", "--image", help = "IPFS location of docker repository in format [HASH:container]",  required = False, default = "QmWH27uaTyf1EgJAUJidW89bFVDuTyVfZHbzVBSxMGajwz:etny-pynithy")
         parser.add_argument("-s", "--script", help ="PATH of python script",  required = True, default = "" )
         parser.add_argument("-f", "--fileset", help ="PATH of the fileset",  required = True, default = "" )
 
@@ -94,7 +95,10 @@ class etnyPoX:
 
 
     def uploadIPFS(file, recursive=False):
+        ipfsnode = socket.gethostbyname('ipfs.ethernity.cloud')
         client = ipfshttpclient.connect('/ip4/127.0.0.1/tcp/5001/http')
+        client.bootstrap.add('/ip4/%s/tcp/4001/ipfs/QmRBc1eBt4hpJQUqHqn6eA8ixQPD3LFcUDsn6coKBQtia5' % ipfsnode)
+        client.swarm.connect('/ip4/%s/tcp/4001/ipfs/QmRBc1eBt4hpJQUqHqn6eA8ixQPD3LFcUDsn6coKBQtia5' % ipfsnode)
 
         res = client.add(file, recursive=recursive)
 
@@ -188,7 +192,11 @@ class etnyPoX:
                 print("")
                 print(datetime.now(),"Found result hash: %s" % result)
                 print(datetime.now(),"Fetching result from IPFS...")
+                ipfsnode = socket.gethostbyname('ipfs.ethernity.cloud')
                 client = ipfshttpclient.connect('/ip4/127.0.0.1/tcp/5001/http')
+                client.bootstrap.add('/ip4/%s/tcp/4001/ipfs/QmRBc1eBt4hpJQUqHqn6eA8ixQPD3LFcUDsn6coKBQtia5' % ipfsnode)
+                client.swarm.connect('/ip4/%s/tcp/4001/ipfs/QmRBc1eBt4hpJQUqHqn6eA8ixQPD3LFcUDsn6coKBQtia5' % ipfsnode)
+
 
                 while True:
                     try:
