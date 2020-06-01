@@ -29,7 +29,7 @@ class etnyPoX:
         parser.add_argument("-b", "--bandwidth", help = "Amount of bandwidth (GB)", required = False, default = "1")
         parser.add_argument("-t", "--duration", help = "Amount of time allocated for task (minutes)", required = False, default = "60")
         parser.add_argument("-n", "--instances", help = "Number of instances to run simmultaneously (count)", required = False, default = "1")
-        parser.add_argument("-i", "--image", help = "IPFS location of docker repository in format [HASH:container]",  required = False, default = "QmSXJN2k2RLG3M19jYGA32rS6VFpTtUFjUEgiWuuL1zyyA:etny-pynithy")
+        parser.add_argument("-i", "--image", help = "IPFS location of docker repository in format [HASH:container]",  required = False, default = "QmbpKmmCyfbNpGaP9AyLb9EVkSSGpAyCMBcSqhWBQBKXCf:etny-pynithy")
         parser.add_argument("-s", "--script", help ="PATH of python script",  required = True, default = "" )
         parser.add_argument("-f", "--fileset", help ="PATH of the fileset",  required = True, default = "" )
 
@@ -236,7 +236,7 @@ class etnyPoX:
                                     resultblockdatetime = datetime.fromtimestamp(resultblocktimestamp)
 
                 etnyPoX.writeToCert(etnyPoX.dohash,'#############################################################################################################')
-                etnyPoX.writeToCert(etnyPoX.dohash,'######################################### bloxberg PoX Certificate ##########################################')
+                etnyPoX.writeToCert(etnyPoX.dohash,'######################################### bloxberg PoX certificate ##########################################')
                 etnyPoX.writeToCert(etnyPoX.dohash,'#############################################################################################################')
                 etnyPoX.writeToCert(etnyPoX.dohash,'######                                                                                                 ######')
                 etnyPoX.writeToCert(etnyPoX.dohash,'######  [INFO] contract address: 0x99738e909a62e2e4840a59214638828E082A9A2b                            ######')

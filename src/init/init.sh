@@ -6,7 +6,17 @@ tar zxvf go-ipfs_v0.4.19_linux-386.tar.gz 2>&1 >> /dev/null
 cd go-ipfs
 ./ipfs init 2>&1 >> /dev/null
 ./ipfs daemon 2>&1 >> /dev/null &
-sleep 3
+
+IP=`getent hosts ipfs.ethernity.cloud | awk '{print $1}'`
+
+until ./ipfs swarm connect /ip4/$IP/tcp/4001/ipfs/QmRBc1eBt4hpJQUqHqn6eA8ixQPD3LFcUDsn6coKBQtia5
+do
+  sleep 1
+done
+
+./ipfs bootstrap add /ip4/$IP/tcp/4001/ipfs/QmRBc1eBt4hpJQUqHqn6eA8ixQPD3LFcUDsn6coKBQtia5
+
 cd ../..
 mkdir certs
+
 touch .init-done

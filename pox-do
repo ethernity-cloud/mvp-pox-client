@@ -6,10 +6,11 @@ if [ ! -e .init-done ]
 then
 	echo -en "Initializing IPFS daemon..."
 	src/init/init.sh 2>&1 >> /dev/null
-	echo "Done"
+	echo " done"
 else
-	echo "Cleaning up IPFS..."
+	echo -en "Cleaning up IPFS..."
 	src/init/clean.sh 2>&1 >> /dev/null
+	echo " done"
 fi
 
 source $BASEPATH/config
