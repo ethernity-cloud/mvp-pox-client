@@ -5,7 +5,7 @@ BASEPATH=`dirname "$0"`
 if [ ! -e .init-done ]
 then
 	echo "$0 was not initialized yet"
-	echo "Requirements fot the pox-do are the following:
+	echo "Requirements fot the $0 are the following:
 1. ipfs daemon running and listening on localhost:5000
 2. python3 with pip
 3. ipfshttpclient python module
@@ -19,13 +19,13 @@ then
 		"")
 			echo -en "Initializing... "
 		        src/init/init.sh 2>&1 >> /dev/null
-			INIT = $?
+			INIT=$?
 		        break
 		        ;;
 		y)
 			echo -en "Initializing... "
 			src/init/init.sh 2>&1 >> /dev/null
-			INIT = $?
+			INIT=$?
 			break
 			;;
 		n)
