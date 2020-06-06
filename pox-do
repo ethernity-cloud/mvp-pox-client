@@ -19,11 +19,13 @@ then
 		"")
 			echo -en "Initializing... "
 		        src/init/init.sh 2>&1 >> /dev/null
+			INIT = $?
 		        break
 		        ;;
 		y)
 			echo -en "Initializing... "
 			src/init/init.sh 2>&1 >> /dev/null
+			INIT = $?
 			break
 			;;
 		n)
@@ -36,7 +38,7 @@ then
 		esac
 	done
 
-	case "$?" in
+	case "$INIT" in
         1)
 		echo "failed"
 		echo "$0 requires python3 installed. Please install it using your system's package manager"
