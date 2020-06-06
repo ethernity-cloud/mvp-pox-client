@@ -1,4 +1,19 @@
 #!/bin/bash
+
+if [ -x "$(command -v python3)" ]; then
+   PYTHON=python3
+else
+   exit 1
+fi
+
+if [ -x "$(command -v pip3)" ]; then
+   PIP=pip3
+else
+   exit 2
+fi
+
+$PIP install ipfshttpclient web3
+
 mkdir .tmp
 cd .tmp
 wget https://github.com/ipfs/go-ipfs/releases/download/v0.4.19/go-ipfs_v0.4.19_linux-386.tar.gz 2>&1 >> /dev/null

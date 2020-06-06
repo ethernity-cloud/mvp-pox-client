@@ -4,9 +4,55 @@ BASEPATH=`dirname "$0"`
 
 if [ ! -e .init-done ]
 then
-	echo -en "Initializing IPFS daemon..."
-	src/init/init.sh 2>&1 >> /dev/null
-	echo " done"
+	echo "$0 was not initialized yet"
+	echo "Requirements fot the pox-do are the following:
+1. ipfs daemon running and listening on localhost:5000
+2. python3 with pip
+3. ipfshttpclient python module
+4. web3 python module"
+        while [ 1 == 1 ]
+	do
+		echo -en "Proceed with automated initalization [Y/n]: "
+		read -r RESPONSE
+
+		case $RESPONSE in
+		"")
+			echo -en "Initializing... "
+		        src/init/init.sh 2>&1 >> /dev/null
+		        break
+		        ;;
+		y)
+			echo -en "Initializing... "
+			src/init/init.sh 2>&1 >> /dev/null
+			break
+			;;
+		n)
+			exit
+			;;
+		*)
+			echo "Please specify 'y' or 'n' for yes or no."
+			continue
+			;;
+		esac
+	done
+
+	case "$?" in
+        1)
+		echo "failed"
+		echo "$0 requires python3 installed. Please install it using your system's package manager"
+		exit
+		;;
+        2)
+	        echo "failed"
+                echo "$0 requires python3-pip installed.  Please install it using your system's package manager."
+                exit
+                ;;
+        0)
+		echo "done"
+            	;;
+        *)
+	esac
+
 else
 	echo -en "Cleaning up IPFS..."
 	src/init/clean.sh 2>&1 >> /dev/null
