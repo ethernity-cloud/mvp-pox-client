@@ -12,12 +12,12 @@ else
    exit 2
 fi
 
-$PIP install ipfshttpclient web3
+$PIP install ipfshttpclient web3 --upgrade
 
 mkdir .tmp
 cd .tmp
-wget https://github.com/ipfs/go-ipfs/releases/download/v0.4.19/go-ipfs_v0.4.19_linux-386.tar.gz 2>&1 >> /dev/null
-tar zxvf go-ipfs_v0.4.19_linux-386.tar.gz 2>&1 >> /dev/null
+wget https://github.com/ipfs/go-ipfs/releases/download/v0.6.0/go-ipfs_v0.6.0_linux-386.tar.gz 2>&1 >> /dev/null
+tar zxvf go-ipfs_v0.6.0_linux-386.tar.gz 2>&1 >> /dev/null
 cd go-ipfs
 ./ipfs init 2>&1 >> /dev/null
 ./ipfs daemon 2>&1 >> /dev/null &

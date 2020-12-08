@@ -98,7 +98,7 @@ class etnyPoX:
         ipfsnode = socket.gethostbyname('ipfs.ethernity.cloud')
         client = ipfshttpclient.connect('/ip4/127.0.0.1/tcp/5001/http')
         client.bootstrap.add('/ip4/%s/tcp/4001/ipfs/QmRBc1eBt4hpJQUqHqn6eA8ixQPD3LFcUDsn6coKBQtia5' % ipfsnode)
-        client.swarm.connect('/ip4/%s/tcp/4001/ipfs/QmRBc1eBt4hpJQUqHqn6eA8ixQPD3LFcUDsn6coKBQtia5' % ipfsnode)
+        #client.swarm.connect('/ip4/81.95.5.72/tcp/4001/ipfs/') # bug tracked under https://github.com/ipfs-shipyard/py-ipfs-http-client/issues/246
 
         res = client.add(file, recursive=recursive)
 
@@ -124,12 +124,14 @@ class etnyPoX:
             'gas': 1000000,
             'chainId': 8995,
             'nonce': nonce,
-            'gasPrice': etnyPoX.w3.toWei("100", "gwei"),
+            'gasPrice': etnyPoX.w3.toWei("1", "wei"),
         })
 
         signed_txn = etnyPoX.w3.eth.account.sign_transaction(unicorn_txn, private_key=etnyPoX.acct.key)
         etnyPoX.w3.eth.sendRawTransaction(signed_txn.rawTransaction)
         hash = etnyPoX.w3.toHex(etnyPoX.w3.sha3(signed_txn.rawTransaction))
+
+        print(datetime.now(), "Submitting transaction for DO request")
 
         try:
             receipt = etnyPoX.w3.eth.waitForTransactionReceipt(hash)
@@ -158,7 +160,7 @@ class etnyPoX:
             'gas': 1000000,
             'chainId': 8995,
             'nonce': nonce,
-            'gasPrice': etnyPoX.w3.toWei("100", "gwei"),
+            'gasPrice': etnyPoX.w3.toWei("1", "wei"),
         })
 
 
