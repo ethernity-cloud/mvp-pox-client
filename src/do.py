@@ -30,7 +30,7 @@ class etnyPoX:
         parser.add_argument("-b", "--bandwidth", help = "Amount of bandwidth (GB)", required = False, default = "1")
         parser.add_argument("-t", "--duration", help = "Amount of time allocated for task (minutes)", required = False, default = "60")
         parser.add_argument("-n", "--instances", help = "Number of instances to run simmultaneously (count)", required = False, default = "1")
-        parser.add_argument("-i", "--image", help = "IPFS location of docker repository in format [HASH:container]",  required = False, default = "QmWH27uaTyf1EgJAUJidW89bFVDuTyVfZHbzVBSxMGajwz:etny-pynithy")
+        parser.add_argument("-i", "--image", help = "IPFS location of docker repository in format [HASH:container]",  required = False, default = "QmV6yFkLoRzenfvqHEhZCV1ow4HjiCZH5cwaDYpPgzkLvi:etny-pynithy")
         parser.add_argument("-s", "--script", help ="PATH of python script",  required = True, default = "" )
         parser.add_argument("-f", "--fileset", help ="PATH of the fileset",  required = True, default = "" )
 
