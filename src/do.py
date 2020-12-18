@@ -124,7 +124,7 @@ class etnyPoX:
             'gas': 1000000,
             'chainId': 8995,
             'nonce': nonce,
-            'gasPrice': etnyPoX.w3.toWei("1", "wei"),
+            'gasPrice': etnyPoX.w3.toWei("1", "mwei"),
         })
 
         signed_txn = etnyPoX.w3.eth.account.sign_transaction(unicorn_txn, private_key=etnyPoX.acct.key)
@@ -160,7 +160,7 @@ class etnyPoX:
             'gas': 1000000,
             'chainId': 8995,
             'nonce': nonce,
-            'gasPrice': etnyPoX.w3.toWei("1", "wei"),
+            'gasPrice': etnyPoX.w3.toWei("1", "mwei"),
         })
 
 
@@ -228,7 +228,7 @@ class etnyPoX:
                 blocktimestamp = (block['timestamp'])
                 blockdatetime = datetime.fromtimestamp(blocktimestamp)
                 endBlockNumber = etnyPoX.w3.eth.blockNumber
-                startBlockNumber = endBlockNumber - 10
+                startBlockNumber = endBlockNumber - 20
                 
                 for i in range(endBlockNumber, startBlockNumber, -1):
                     block = etnyPoX.w3.eth.getBlock(i,True)
