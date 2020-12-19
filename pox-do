@@ -63,4 +63,10 @@ fi
 
 source $BASEPATH/config
 
-python3 src/do.py -a $ADDRESS -k $PRIVATE_KEY $@
+if [ "$OS" == "Windows_NT" ]
+then
+	PYTHON_BIN="python"
+else
+	PYTHON_BIN="python3"
+fi
+${PYTHON_BIN} src/do.py -a $ADDRESS -k $PRIVATE_KEY $@
