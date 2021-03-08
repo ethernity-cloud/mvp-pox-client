@@ -20,7 +20,7 @@ else
    exit 2
 fi
 
-$PIP install ipfshttpclient web3 --upgrade
+$PIP install ipfshttpclient web3 psutil --upgrade
 
 mkdir .tmp
 cd .tmp

@@ -5,6 +5,7 @@ import argparse
 import ipfshttpclient
 import ntpath
 import os
+import psutil
 import sys
 import socket
 from datetime import datetime
@@ -82,7 +83,7 @@ class etnyPoX:
         etnyPoX.contract_abi = f.read()
         f.close()
 
-        etnyPoX.w3 = Web3(Web3.HTTPProvider("https://core.bloxberg.org"))
+        etnyPoX.w3 = Web3(Web3.HTTPProvider("https://bloxberg.ethernity.cloud"))
         etnyPoX.w3.middleware_onion.inject(geth_poa_middleware, layer=0)
 
         etnyPoX.acct = Account.privateKeyToAccount(etnyPoX.privatekey)
@@ -95,20 +96,60 @@ class etnyPoX:
 
 
     def uploadIPFS(file, recursive=False):
-        ipfsnode = socket.gethostbyname('ipfs.ethernity.cloud')
-        client = ipfshttpclient.connect('/ip4/127.0.0.1/tcp/5001/http')
-        client.bootstrap.add('/ip4/%s/tcp/4001/ipfs/QmRBc1eBt4hpJQUqHqn6eA8ixQPD3LFcUDsn6coKBQtia5' % ipfsnode)
-        #client.swarm.connect('/ip4/81.95.5.72/tcp/4001/ipfs/') # bug tracked under https://github.com/ipfs-shipyard/py-ipfs-http-client/issues/246
+        while True:
+            ipfsnode = socket.gethostbyname('ipfs.ethernity.cloud')
+            client = ipfshttpclient.connect('/ip4/127.0.0.1/tcp/5001/http')
+            client.bootstrap.add('/ip4/%s/tcp/4001/ipfs/QmRBc1eBt4hpJQUqHqn6eA8ixQPD3LFcUDsn6coKBQtia5' % ipfsnode)
+            #client.swarm.connect('/ip4/81.95.5.72/tcp/4001/ipfs/') # bug tracked under https://github.com/ipfs-shipyard/py-ipfs-http-client/issues/246          
+            cmd = "%s swarm connect /ip4/%s/tcp/4001/ipfs/QmRBc1eBt4hpJQUqHqn6eA8ixQPD3LFcUDsn6coKBQtia5 > %s" % (os.path.join('.tmp','go-ipfs','ipfs'), ipfsnode, os.path.join('.tmp', 'ipfsconnect.txt'))
+            os.system(cmd)
 
-        res = client.add(file, recursive=recursive)
-
+            res = client.add(file, recursive=recursive)
+            tries = 0
    
-        if isinstance(res,list):
-            for item in res:
-                if item['Name'] == ntpath.basename(file):
-                    return item['Hash']
-        else:
-            return res['Hash']
+            print(datetime.now(),"Uploading to IPFS...")
+            if isinstance(res,list):
+                for item in res:
+                    if item['Name'] == ntpath.basename(file):
+                        print(datetime.now(),"Checking if upload was successful: %s" % item['Hash'])
+                        while tries < 5:
+                            for dht in client.dht.findprovs(item['Hash']):
+                                try:
+                                    for response in dht['Responses']:
+                                        if(response['ID'] == "QmRBc1eBt4hpJQUqHqn6eA8ixQPD3LFcUDsn6coKBQtia5"):
+                                            return item['Hash']
+                                except NameError:
+                                    pass
+                                except AttributeError:
+                                    pass
+                                except TypeError:
+                                    pass
+                            tries += 1
+            else:
+                print(datetime.now(),"Checking if upload was successful: %s" % res['Hash'])
+                while tries < 5:
+                    for dht in client.dht.findprovs(res['Hash']):
+                        try:
+                            for response in dht['Responses']:
+                                if(response['ID'] == "QmRBc1eBt4hpJQUqHqn6eA8ixQPD3LFcUDsn6coKBQtia5"):
+                                    return res['Hash']
+                        except NameError:
+                            pass
+                        except AttributeError:
+                            pass
+                        except TypeError:
+                            pass
+                    tries += 1
+
+            print(datetime.now(),"Upload failed, restarting IPFS...")
+            for proc in psutil.process_iter():
+                if proc.name() == "ipfs.exe":
+                    proc.kill()
+                if proc.name() == "ipfs":
+                    proc.kill()
+            cmd = 'start /B "" "%s" daemon > %s' % (os.path.join('.tmp','go-ipfs','ipfs'), os.path.join('.tmp', 'ipfsoutput.txt'))
+            os.system(cmd)
+
 
         return None
 
@@ -133,16 +174,29 @@ class etnyPoX:
 
         print(datetime.now(), "Submitting transaction for DO request")
 
-        try:
-            receipt = etnyPoX.w3.eth.waitForTransactionReceipt(hash)
-            processed_logs = etnyPoX.etny.events._addDORequestEV().processReceipt(receipt)
-            etnyPoX.dorequest = processed_logs[0].args._rowNumber
-        except:
-            raise
-        else:
-            print(datetime.now(), "Request %s created successfuly!" % etnyPoX.dorequest)
-            print(datetime.now(), "TX Hash: %s" % hash)
-            etnyPoX.dohash = hash
+
+        for i in range(100):
+            try:
+                receipt = etnyPoX.w3.eth.waitForTransactionReceipt(hash)
+                processed_logs = etnyPoX.etny.events._addDORequestEV().processReceipt(receipt)
+                etnyPoX.dorequest = processed_logs[0].args._rowNumber
+            except KeyError:
+                time.sleep(1)
+                continue
+            except:
+                raise
+            else:
+                print(datetime.now(), "Request %s created successfuly!" % etnyPoX.dorequest)
+                print(datetime.now(), "TX Hash: %s" % hash)
+                etnyPoX.dohash = hash
+                break
+
+        if (receipt == None):
+            print(datetime.now(), "Unable to create request, please check conectivity with bloxberg node")
+            sys.exit()            
+            
+
+
 
     def waitForProcessor():
         while True:
@@ -168,14 +222,23 @@ class etnyPoX:
         etnyPoX.w3.eth.sendRawTransaction(signed_txn.rawTransaction)
         hash = etnyPoX.w3.toHex(etnyPoX.w3.sha3(signed_txn.rawTransaction))
 
-        try:
-            etnyPoX.w3.eth.waitForTransactionReceipt(hash)
-        except:
-            raise
-        else:
-            print("")
-            print(datetime.now(),"Order %s approved successfuly!" % order)
-            print(datetime.now(),"TX Hash: %s" % hash)
+        for i in range(100):
+            try:
+                receipt = etnyPoX.w3.eth.waitForTransactionReceipt(hash)
+            except KeyError:
+                time.sleep(1)
+                continue
+            except:
+                raise
+            else:
+                print("")
+                print(datetime.now(),"Order %s approved successfuly!" % order)
+                print(datetime.now(),"TX Hash: %s" % hash)
+                break
+
+        if (receipt == None):
+            print(datetime.now(),"Unable to approve order, please check connectivity with bloxberg node")
+            sys.exit()
 
         etnyPoX.getResultFromOrder(order)
 
