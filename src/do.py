@@ -32,8 +32,9 @@ class etnyPoX:
         parser.add_argument("-t", "--duration", help = "Amount of time allocated for task (minutes)", required = False, default = "60")
         parser.add_argument("-n", "--instances", help = "Number of instances to run simmultaneously (count)", required = False, default = "1")
         parser.add_argument("-i", "--image", help = "IPFS location of docker repository in format [HASH:container]",  required = False, default = "QmYF7WuHAH4tr896YXxwahaBEWT6YPcagB1dpotGWtCbwS:etny-pynithy")
-        parser.add_argument("-s", "--script", help ="PATH of python script",  required = True, default = "" )
-        parser.add_argument("-f", "--fileset", help ="PATH of the fileset",  required = True, default = "" )
+        parser.add_argument("-s", "--script", help = "PATH of python script",  required = True, default = "" )
+        parser.add_argument("-f", "--fileset", help = "PATH of the fileset",  required = True, default = "" )
+        parser.add_argument("-r", "--redistribute", help ="Check and redistribute IPFS payload after order validation", required = False, action = 'store_true')
 
 
 
@@ -78,6 +79,11 @@ class etnyPoX:
             etnyPoX.fileset = format(argument.fileset)
             etnyPoX.filesetHash = ''
             status = True
+        if argument.redistribute:
+            etnyPoX.redistribute = True
+            status = True
+        else:
+            etnyPoX.redistribute = False
 
         f = open(os.path.dirname(os.path.realpath(__file__)) + '/pox.abi')
         etnyPoX.contract_abi = f.read()
@@ -97,64 +103,112 @@ class etnyPoX:
 
     def uploadIPFS(file, recursive=False):
         while True:
-            ipfsnode = socket.gethostbyname('ipfs.ethernity.cloud')
-            client = ipfshttpclient.connect('/ip4/127.0.0.1/tcp/5001/http')
-            client.bootstrap.add('/ip4/%s/tcp/4001/ipfs/QmRBc1eBt4hpJQUqHqn6eA8ixQPD3LFcUDsn6coKBQtia5' % ipfsnode)
-            #client.swarm.connect('/ip4/81.95.5.72/tcp/4001/ipfs/') # bug tracked under https://github.com/ipfs-shipyard/py-ipfs-http-client/issues/246          
-            cmd = "%s swarm connect /ip4/%s/tcp/4001/ipfs/QmRBc1eBt4hpJQUqHqn6eA8ixQPD3LFcUDsn6coKBQtia5 > %s" % (os.path.join('.tmp','go-ipfs','ipfs'), ipfsnode, os.path.join('.tmp', 'ipfsconnect.txt'))
-            os.system(cmd)
+            try:
+                ipfsnode = socket.gethostbyname('ipfs.ethernity.cloud')
+                client = ipfshttpclient.connect('/ip4/127.0.0.1/tcp/5001/http')
+                client.bootstrap.add('/ip4/%s/tcp/4001/ipfs/QmRBc1eBt4hpJQUqHqn6eA8ixQPD3LFcUDsn6coKBQtia5' % ipfsnode)
+                #client.swarm.connect('/ip4/81.95.5.72/tcp/4001/ipfs/') # bug tracked under https://github.com/ipfs-shipyard/py-ipfs-http-client/issues/246
+                cmd = "%s swarm connect /ip4/%s/tcp/4001/ipfs/QmRBc1eBt4hpJQUqHqn6eA8ixQPD3LFcUDsn6coKBQtia5 > %s" % (os.path.join('.tmp','go-ipfs','ipfs'), ipfsnode, os.path.join('.tmp', 'ipfsconnect.txt'))
+                os.system(cmd)
+            except:
+                sys.stdout.write('*')
+                sys.stdout.flush()
+                continue
 
             res = client.add(file, recursive=recursive)
-            tries = 0
    
-            print(datetime.now(),"Uploading to IPFS...")
+
             if isinstance(res,list):
                 for item in res:
                     if item['Name'] == ntpath.basename(file):
-                        print(datetime.now(),"Checking if upload was successful: %s" % item['Hash'])
-                        while tries < 5:
-                            for dht in client.dht.findprovs(item['Hash']):
-                                try:
+                        return item['Hash']
+            else:
+                return res['Hash']
+        return None
+
+    def checkIPFSUpload(file, recursive=False):
+        while True:
+            try:
+                client = ipfshttpclient.connect('/ip4/127.0.0.1/tcp/5001/http')
+            except:
+                sys.stdout.write('/')
+                sys.stdout.flush()
+                etnyPoX.restartIPFS()
+                continue
+
+
+            res = client.add(file, recursive=recursive)
+
+            sys.stdout.write('.')
+            sys.stdout.flush()
+
+            retries = 0
+
+            if isinstance(res,list):
+                for item in res:
+                    while retries < 3:
+                        try:
+                            ipfsnode = socket.gethostbyname('ipfs.ethernity.cloud')
+                            client.bootstrap.add('/ip4/%s/tcp/4001/ipfs/QmRBc1eBt4hpJQUqHqn6eA8ixQPD3LFcUDsn6coKBQtia5' % ipfsnode)
+                            #client.swarm.connect('/ip4/81.95.5.72/tcp/4001/ipfs/') # bug tracked under https://github.com/ipfs-shipyard/py-ipfs-http-client/issues/246
+                            cmd = "%s swarm connect /ip4/%s/tcp/4001/ipfs/QmRBc1eBt4hpJQUqHqn6eA8ixQPD3LFcUDsn6coKBQtia5 > %s" % (os.path.join('.tmp','go-ipfs','ipfs'), ipfsnode, os.path.join('.tmp', 'ipfsconnect.txt'))
+                            os.system(cmd)
+                            time.sleep(1)
+                            for dht in client.dht.findprovs(item['Hash'], timeout=10):
+                                if dht['Responses'] != None:
                                     for response in dht['Responses']:
                                         if(response['ID'] == "QmRBc1eBt4hpJQUqHqn6eA8ixQPD3LFcUDsn6coKBQtia5"):
+                                            sys.stdout.write('#')
+                                            sys.stdout.flush()
                                             return item['Hash']
-                                except NameError:
-                                    pass
-                                except AttributeError:
-                                    pass
-                                except TypeError:
-                                    pass
-                            tries += 1
+                        except:
+                            pass
+                        sys.stdout.write('.')
+                        sys.stdout.flush()
+                        retries += 1
             else:
-                print(datetime.now(),"Checking if upload was successful: %s" % res['Hash'])
-                while tries < 5:
-                    for dht in client.dht.findprovs(res['Hash']):
-                        try:
-                            for response in dht['Responses']:
-                                if(response['ID'] == "QmRBc1eBt4hpJQUqHqn6eA8ixQPD3LFcUDsn6coKBQtia5"):
-                                    return res['Hash']
-                        except NameError:
-                            pass
-                        except AttributeError:
-                            pass
-                        except TypeError:
-                            pass
-                    tries += 1
+                while retries < 3:
+                    try:
+                        ipfsnode = socket.gethostbyname('ipfs.ethernity.cloud')
+                        client.bootstrap.add('/ip4/%s/tcp/4001/ipfs/QmRBc1eBt4hpJQUqHqn6eA8ixQPD3LFcUDsn6coKBQtia5' % ipfsnode)
+                        #client.swarm.connect('/ip4/81.95.5.72/tcp/4001/ipfs/') # bug tracked under https://github.com/ipfs-shipyard/py-ipfs-http-client/issues/246
+                        cmd = "%s swarm connect /ip4/%s/tcp/4001/ipfs/QmRBc1eBt4hpJQUqHqn6eA8ixQPD3LFcUDsn6coKBQtia5 > %s" % (os.path.join('.tmp','go-ipfs','ipfs'), ipfsnode, os.path.join('.tmp', 'ipfsconnect.txt'))
+                        os.system(cmd)
+                        time.sleep(1)
+                        for dht in client.dht.findprovs(res['Hash'], timeout=10):
+                            if dht['Responses'] != None:
+                                for response in dht['Responses']:
+                                    if(response['ID'] == "QmRBc1eBt4hpJQUqHqn6eA8ixQPD3LFcUDsn6coKBQtia5"):
+                                        sys.stdout.write('#')
+                                        sys.stdout.flush()
+                                        return res['Hash']
+                    except:
+                        pass
+                    sys.stdout.write('.')
+                    sys.stdout.flush()
+                    retries += 1
 
-            print(datetime.now(),"Upload failed, restarting IPFS...")
-            for proc in psutil.process_iter():
-                if proc.name() == "ipfs.exe":
-                    proc.kill()
-                if proc.name() == "ipfs":
-                    proc.kill()
-            cmd = 'start /B "" "%s" daemon > %s' % (os.path.join('.tmp','go-ipfs','ipfs'), os.path.join('.tmp', 'ipfsoutput.txt'))
-            os.system(cmd)
+            sys.stdout.write('*')
+            sys.stdout.flush()
+            etnyPoX.restartIPFS()
 
+        return None
 
+    def restartIPFS():
+
+        for proc in psutil.process_iter():
+            if proc.name() == "ipfs.exe":
+                proc.kill()
+            if proc.name() == "ipfs":
+                proc.kill()
+        cmd = 'start /B "" "%s" daemon > %s' % (os.path.join('.tmp','go-ipfs','ipfs'), os.path.join('.tmp', 'ipfsoutput.txt'))
+        os.system(cmd)
         return None
 
     def addDORequest():
         nonce = etnyPoX.w3.eth.getTransactionCount(etnyPoX.address)
+
+        print(datetime.now(),"Sending payload to IPFS...")
 
         etnyPoX.scriptHash = etnyPoX.uploadIPFS(etnyPoX.script)
         etnyPoX.filesetHash = etnyPoX.uploadIPFS(etnyPoX.fileset, True)
@@ -202,7 +256,18 @@ class etnyPoX:
         while True:
                 order = etnyPoX.findOrder(etnyPoX.dorequest)
                 if order is not None:
-                    etnyPoX.approveOrder(order);
+                    print("")
+                    print(datetime.now(),"Connected!")
+                    etnyPoX.approveOrder(order)
+
+                    if etnyPoX.redistribute == True:
+                        print(datetime.now(),"Checking IPFS payload distribution...")
+                        scriptHash = etnyPoX.checkIPFSUpload(etnyPoX.script)
+                        filesetHash = etnyPoX.checkIPFSUpload(etnyPoX.fileset, True)
+                        if scriptHash != None and filesetHash != None:
+                            print("")
+                            print(datetime.now(),"IPFS payload distribution confirmed!")
+                    etnyPoX.getResultFromOrder(order)
                 else:
                     time.sleep(5)
         return None
@@ -231,7 +296,6 @@ class etnyPoX:
             except:
                 raise
             else:
-                print("")
                 print(datetime.now(),"Order %s approved successfuly!" % order)
                 print(datetime.now(),"TX Hash: %s" % hash)
                 break
@@ -240,7 +304,6 @@ class etnyPoX:
             print(datetime.now(),"Unable to approve order, please check connectivity with bloxberg node")
             sys.exit()
 
-        etnyPoX.getResultFromOrder(order)
 
     def getResultFromOrder(order):
         print(datetime.now(),"Waiting for task to finish...")
