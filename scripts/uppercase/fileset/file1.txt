@@ -1,1 +1,1 @@
-this string will be converted into titlecase by the uppercase script
+this string will be converted into titlecase by the uppercase scripttt

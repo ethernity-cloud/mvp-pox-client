@@ -1,6 +1,17 @@
 #!/bin/bash
-
 BASEPATH=`dirname "$0"`
+LOCAL=False
+while getopts "f:s:a:k:c:m:d:b:t:n:i:rl" option;
+do
+case "${option}" in
+            l)
+                    LOCAL=True;;
+
+    esac
+done
+
+
+echo "$LOCAL"
 
 if [ ! -e .init-done ]
 then
@@ -18,13 +29,22 @@ then
 		case $RESPONSE in
 		"")
 			echo -en "Initializing... "
-		        src/init/init.sh 2>&1 >> /dev/null
-			INIT=$?
+			if [ "$LOCAL" == True ]
+			then
+	 			src/init/init.sh -l 2>&1 >> /dev/null
+	 		else
+	 			src/init/init_python.sh 2>&1 >> /dev/null
+			fi
 		        break
 		        ;;
 		y)
 			echo -en "Initializing... "
-			src/init/init.sh 2>&1 >> /dev/null
+			if [ "$LOCAL" == True ]
+			then
+	 			src/init/init.sh -l 2>&1 >> /dev/null
+	 		else
+	 			src/init/init_python.sh 2>&1 >> /dev/null
+			fi
 			INIT=$?
 			break
 			;;
@@ -61,7 +81,7 @@ else
 	echo " done"
 fi
 
-source $BASEPATH/config
+source "${BASEPATH}/config"
 
 if [ "$OS" == "Windows_NT" ]
 then
@@ -69,4 +89,5 @@ then
 else
 	PYTHON_BIN="python3"
 fi
+echo "${PYTHON_BIN}"
 ${PYTHON_BIN} src/do.py -a $ADDRESS -k $PRIVATE_KEY $@

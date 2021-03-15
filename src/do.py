@@ -35,9 +35,7 @@ class etnyPoX:
         parser.add_argument("-s", "--script", help = "PATH of python script",  required = True, default = "" )
         parser.add_argument("-f", "--fileset", help = "PATH of the fileset",  required = True, default = "" )
         parser.add_argument("-r", "--redistribute", help ="Check and redistribute IPFS payload after order validation", required = False, action = 'store_true')
-
-
-
+        parser.add_argument("-l", "--local", help="Use local IPFS Gateway", required=False, action = 'store_true')
 
 
         argument = parser.parse_args()
@@ -84,6 +82,7 @@ class etnyPoX:
             status = True
         else:
             etnyPoX.redistribute = False
+        etnyPoX.local, status = (argument.local, argument.local or status)
 
         f = open(os.path.dirname(os.path.realpath(__file__)) + '/pox.abi')
         etnyPoX.contract_abi = f.read()
@@ -95,27 +94,52 @@ class etnyPoX:
         etnyPoX.acct = Account.privateKeyToAccount(etnyPoX.privatekey)
         etnyPoX.etny = etnyPoX.w3.eth.contract(address=etnyPoX.w3.toChecksumAddress("0x99738e909a62e2e4840a59214638828E082A9A2b"), abi=etnyPoX.contract_abi)
 
-        etnyPoX.dorequest = 0;
-        etnyPoX.dohash = 0;
+        etnyPoX.connectIPFSGateway()
 
+        etnyPoX.dorequest = 0
+        etnyPoX.dohash = 0
 
+    @staticmethod
+    def getIPFSExecutablePath():
+        return os.path.join('..', '.tmp','go-ipfs','ipfs')
 
+    @staticmethod
+    def getIPFSOutputFilePath(file):
+        return os.path.join('..', '.tmp', file)
+
+    @staticmethod
+    def connectIPFSGateway():
+        while True:
+            if not etnyPoX.local:
+                # If not local, then connect automatically to infura gateway
+                etnyPoX.client = ipfshttpclient.connect('/dns/ipfs.infura.io/tcp/5001/https')
+                break
+            # Try to connect local gateway
+            try:
+                etnyPoX.client = ipfshttpclient.connect('/ip4/127.0.0.1/tcp/5001/http')
+                etnyPoX.ipfsnode = socket.gethostbyname('ipfs.ethernity.cloud')
+                etnyPoX.client.bootstrap.add('/ip4/%s/tcp/4001/ipfs/QmRBc1eBt4hpJQUqHqn6eA8ixQPD3LFcUDsn6coKBQtia5' % etnyPoX.ipfsnode)
+            except:
+                # Can't connect to local gateway connect to infura
+                sys.stdout.write('/')
+                sys.stdout.flush()
+                etnyPoX.restartIPFS()
+                continue
+        return
 
     def uploadIPFS(file, recursive=False):
         while True:
             try:
-                ipfsnode = socket.gethostbyname('ipfs.ethernity.cloud')
-                client = ipfshttpclient.connect('/ip4/127.0.0.1/tcp/5001/http')
-                client.bootstrap.add('/ip4/%s/tcp/4001/ipfs/QmRBc1eBt4hpJQUqHqn6eA8ixQPD3LFcUDsn6coKBQtia5' % ipfsnode)
-                #client.swarm.connect('/ip4/81.95.5.72/tcp/4001/ipfs/') # bug tracked under https://github.com/ipfs-shipyard/py-ipfs-http-client/issues/246
-                cmd = "%s swarm connect /ip4/%s/tcp/4001/ipfs/QmRBc1eBt4hpJQUqHqn6eA8ixQPD3LFcUDsn6coKBQtia5 > %s" % (os.path.join('.tmp','go-ipfs','ipfs'), ipfsnode, os.path.join('.tmp', 'ipfsconnect.txt'))
-                os.system(cmd)
+                if etnyPoX.local and hasattr(etnyPoX, 'ipfsnode'):
+                    cmd = "%s swarm connect /ip4/%s/tcp/4001/ipfs/QmRBc1eBt4hpJQUqHqn6eA8ixQPD3LFcUDsn6coKBQtia5 > %s" % (etnyPoX.getIPFSExecutablePath(), etnyPoX.ipfsnode, etnyPoX.getIPFSOutputFilePath('ipfsconnect.txt'))
+                    os.system(cmd)
             except:
                 sys.stdout.write('*')
                 sys.stdout.flush()
                 continue
 
-            res = client.add(file, recursive=recursive)
+
+            res = etnyPoX.client.add(file, recursive=recursive)
    
 
             if isinstance(res,list):
@@ -128,16 +152,8 @@ class etnyPoX:
 
     def checkIPFSUpload(file, recursive=False):
         while True:
-            try:
-                client = ipfshttpclient.connect('/ip4/127.0.0.1/tcp/5001/http')
-            except:
-                sys.stdout.write('/')
-                sys.stdout.flush()
-                etnyPoX.restartIPFS()
-                continue
 
-
-            res = client.add(file, recursive=recursive)
+            res = etnyPoX.client.add(file, recursive=recursive)
 
             sys.stdout.write('.')
             sys.stdout.flush()
@@ -148,13 +164,10 @@ class etnyPoX:
                 for item in res:
                     while retries < 3:
                         try:
-                            ipfsnode = socket.gethostbyname('ipfs.ethernity.cloud')
-                            client.bootstrap.add('/ip4/%s/tcp/4001/ipfs/QmRBc1eBt4hpJQUqHqn6eA8ixQPD3LFcUDsn6coKBQtia5' % ipfsnode)
-                            #client.swarm.connect('/ip4/81.95.5.72/tcp/4001/ipfs/') # bug tracked under https://github.com/ipfs-shipyard/py-ipfs-http-client/issues/246
-                            cmd = "%s swarm connect /ip4/%s/tcp/4001/ipfs/QmRBc1eBt4hpJQUqHqn6eA8ixQPD3LFcUDsn6coKBQtia5 > %s" % (os.path.join('.tmp','go-ipfs','ipfs'), ipfsnode, os.path.join('.tmp', 'ipfsconnect.txt'))
+                            cmd = "%s swarm connect /ip4/%s/tcp/4001/ipfs/QmRBc1eBt4hpJQUqHqn6eA8ixQPD3LFcUDsn6coKBQtia5 > %s" % (etnyPoX.getIPFSExecutablePath(), etnyPoX.ipfsnode, etnyPoX.getIPFSOutputFilePath('ipfsconnect.txt'))
                             os.system(cmd)
                             time.sleep(1)
-                            for dht in client.dht.findprovs(item['Hash'], timeout=10):
+                            for dht in etnyPoX.client.dht.findprovs(item['Hash'], timeout=10):
                                 if dht['Responses'] != None:
                                     for response in dht['Responses']:
                                         if(response['ID'] == "QmRBc1eBt4hpJQUqHqn6eA8ixQPD3LFcUDsn6coKBQtia5"):
@@ -169,13 +182,11 @@ class etnyPoX:
             else:
                 while retries < 3:
                     try:
-                        ipfsnode = socket.gethostbyname('ipfs.ethernity.cloud')
-                        client.bootstrap.add('/ip4/%s/tcp/4001/ipfs/QmRBc1eBt4hpJQUqHqn6eA8ixQPD3LFcUDsn6coKBQtia5' % ipfsnode)
                         #client.swarm.connect('/ip4/81.95.5.72/tcp/4001/ipfs/') # bug tracked under https://github.com/ipfs-shipyard/py-ipfs-http-client/issues/246
-                        cmd = "%s swarm connect /ip4/%s/tcp/4001/ipfs/QmRBc1eBt4hpJQUqHqn6eA8ixQPD3LFcUDsn6coKBQtia5 > %s" % (os.path.join('.tmp','go-ipfs','ipfs'), ipfsnode, os.path.join('.tmp', 'ipfsconnect.txt'))
+                        cmd = "%s swarm connect /ip4/%s/tcp/4001/ipfs/QmRBc1eBt4hpJQUqHqn6eA8ixQPD3LFcUDsn6coKBQtia5 > %s" % (etnyPoX.getIPFSExecutablePath(), etnyPoX.ipfsnode, etnyPoX.getIPFSOutputFilePath('ipfsconnect.txt'))
                         os.system(cmd)
                         time.sleep(1)
-                        for dht in client.dht.findprovs(res['Hash'], timeout=10):
+                        for dht in etnyPoX.client.dht.findprovs(res['Hash'], timeout=10):
                             if dht['Responses'] != None:
                                 for response in dht['Responses']:
                                     if(response['ID'] == "QmRBc1eBt4hpJQUqHqn6eA8ixQPD3LFcUDsn6coKBQtia5"):
@@ -201,7 +212,7 @@ class etnyPoX:
                 proc.kill()
             if proc.name() == "ipfs":
                 proc.kill()
-        cmd = 'start /B "" "%s" daemon > %s' % (os.path.join('.tmp','go-ipfs','ipfs'), os.path.join('.tmp', 'ipfsoutput.txt'))
+        cmd = 'start /B "" "%s" daemon > %s' % (etnyPoX.getIPFSExecutablePath(), etnyPoX.getIPFSOutputFilePath('ipfsoutput.txt'))
         os.system(cmd)
         return None
 
@@ -320,16 +331,13 @@ class etnyPoX:
                 print("")
                 print(datetime.now(),"Found result hash: %s" % result)
                 print(datetime.now(),"Fetching result from IPFS...")
-                ipfsnode = socket.gethostbyname('ipfs.ethernity.cloud')
-                client = ipfshttpclient.connect('/ip4/127.0.0.1/tcp/5001/http')
-                client.bootstrap.add('/ip4/%s/tcp/4001/ipfs/QmRBc1eBt4hpJQUqHqn6eA8ixQPD3LFcUDsn6coKBQtia5' % ipfsnode)
                 #client.swarm.connect('/ip4/%s/tcp/4001/ipfs/QmRBc1eBt4hpJQUqHqn6eA8ixQPD3LFcUDsn6coKBQtia5' % ipfsnode) # bug tracked under https://github.com/ipfs-shipyard/py-ipfs-http-client/issues/246
 
 
 
                 while True:
                     try:
-                        client.get(result)
+                        etnyPoX.client.get(result)
                     except:
                         sys.stdout.write('.')
                         sys.stdout.flush()
@@ -339,7 +347,8 @@ class etnyPoX:
                         break
 
                 file = os.path.dirname(os.path.realpath(__file__)) + '/../' + result
-
+                # file = os.path.join(os.path.abspath(os.path.join(os.path.dirname(os.path.realpath(__file__)), result)))
+                # file = os.path.join(os.path.abspath(os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir)), result)
                 f = open(file) 
                 content = f.read()
                 f.close()
@@ -408,10 +417,16 @@ class etnyPoX:
                 sys.exit()
 
     def writeToCert(hash, str):
-        f = open('certs/' + etnyPoX.dohash, 'a+')
-        f.write(str + '\n')
-        f.close()
-        print(str)
+        if os.path.isfile(os.path.join('certs/' + etnyPoX.dohash)):
+            with open(os.path.join('certs/' + etnyPoX.dohash), 'a+') as f:
+                f.write(str + '\n')
+                print(str)
+            return
+        if not os.path.isdir(os.path.join("..", "certs")):
+            os.mkdir(os.path.join("..", "certs"))
+        with open(os.path.join('certs/' + etnyPoX.dohash), 'x+') as f:
+            f.write(str + '\n')
+            print(str)
 
     def findOrder(doReq):
         sys.stdout.write('.')
