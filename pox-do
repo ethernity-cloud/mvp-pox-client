@@ -31,7 +31,7 @@ then
 			echo -en "Initializing... "
 			if [ "$LOCAL" == True ]
 			then
-	 			src/init/init.sh -l 2>&1 >> /dev/null
+	 			src/init/init.sh 2>&1 >> /dev/null
 	 		else
 	 			src/init/init_python.sh 2>&1 >> /dev/null
 			fi
@@ -41,7 +41,7 @@ then
 			echo -en "Initializing... "
 			if [ "$LOCAL" == True ]
 			then
-	 			src/init/init.sh -l 2>&1 >> /dev/null
+	 			src/init/init.sh 2>&1 >> /dev/null
 	 		else
 	 			src/init/init_python.sh 2>&1 >> /dev/null
 			fi
