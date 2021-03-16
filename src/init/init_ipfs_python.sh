@@ -63,7 +63,7 @@ else
     ./ipfs bootstrap add /ip4/${IP}/tcp/4001/ipfs/QmRBc1eBt4hpJQUqHqn6eA8ixQPD3LFcUDsn6coKBQtia5
 fi
 
-cd ..
+cd ../..
 mkdir certs
 
 touch .init-done

@@ -1,17 +1,7 @@
 #!/bin/bash
 BASEPATH=`dirname "$0"`
-LOCAL=False
-while getopts "f:s:a:k:c:m:d:b:t:n:i:rl" option;
-do
-case "${option}" in
-            l)
-                    LOCAL=True;;
 
-    esac
-done
-
-
-echo "$LOCAL"
+source "${BASEPATH}/config"
 
 if [ ! -e .init-done ]
 then
@@ -29,9 +19,9 @@ then
 		case $RESPONSE in
 		"")
 			echo -en "Initializing... "
-			if [ "$LOCAL" == True ]
+			if [ "$IPFS_GATEWAY_URL" == "" ]
 			then
-	 			src/init/init.sh 2>&1 >> /dev/null
+	 			src/init/init_ipfs_python.sh 2>&1 >> /dev/null
 	 		else
 	 			src/init/init_python.sh 2>&1 >> /dev/null
 			fi
@@ -39,9 +29,9 @@ then
 		        ;;
 		y)
 			echo -en "Initializing... "
-			if [ "$LOCAL" == True ]
+			if [ $IPFS_GATEWAY_URL == "" ]
 			then
-	 			src/init/init.sh 2>&1 >> /dev/null
+	 			src/init/init_ipfs_python.sh 2>&1 >> /dev/null
 	 		else
 	 			src/init/init_python.sh 2>&1 >> /dev/null
 			fi
@@ -81,13 +71,15 @@ else
 	echo " done"
 fi
 
-source "${BASEPATH}/config"
-
 if [ "$OS" == "Windows_NT" ]
 then
 	PYTHON_BIN="python"
 else
 	PYTHON_BIN="python3"
 fi
-echo "${PYTHON_BIN}"
+
+if [ ! -z "$IPFS_GATEWAY_URL" ]; then set -- "$@" -g $IPFS_GATEWAY_URL; fi
+if [ ! -z "$IPFS_GATEWAY_PASSWORD" ]; then set -- "$@" -u $IPFS_GATEWAY_USERNAME; fi
+if [ ! -z "$IFS_GATEWAY_PASSWORD" ]; then set -- "$@" -p $IPFS_GATEWAY_PASSWORD; fi
+
 ${PYTHON_BIN} src/do.py -a $ADDRESS -k $PRIVATE_KEY $@
