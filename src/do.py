@@ -118,13 +118,13 @@ class etnyPoX:
 
     @staticmethod
     def getIPFSExecutablePath():
-        return os.path.join('..', '.tmp','go-ipfs','ipfs')
+        return os.path.join('.tmp','go-ipfs','ipfs')
 
     @staticmethod
     def getIPFSOutputFilePath(file):
-        if not os.path.isdir(os.path.join('..', '.tmp')):
-            os.mkdir(os.path.join('..', '.tmp'))
-        return os.path.join('..', '.tmp', file)
+        if not os.path.isdir(os.path.join('.tmp')):
+            os.mkdir(os.path.join('.tmp'))
+        return os.path.join('.tmp', file)
 
     @staticmethod
     def connectIPFSGateway():
