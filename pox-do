@@ -11,6 +11,11 @@ then
 2. python3 with pip
 3. ipfshttpclient python module
 4. web3 python module"
+	if [ "$OS" == "Windows_NT" ]
+	then
+		echo "5. Microsoft Visual Studio C++ Build Tools"
+	fi
+
         while [ 1 == 1 ]
 	do
 		echo -en "Proceed with automated initalization [Y/n]: "
@@ -21,9 +26,9 @@ then
 			echo -en "Initializing... "
 			if [ "$IPFS_GATEWAY_URL" == "" ]
 			then
-	 			src/init/init_ipfs_python.sh 2>&1 >> /dev/null
+	 			src/init/init_ipfs_python.sh 2>&1
 	 		else
-	 			src/init/init_python.sh 2>&1 >> /dev/null
+	 			src/init/init_python.sh 2>&1
 			fi
 		        break
 		        ;;
@@ -31,9 +36,9 @@ then
 			echo -en "Initializing... "
 			if [ "$IPFS_GATEWAY_URL" == "" ]
 			then
-	 			src/init/init_ipfs_python.sh 2>&1 >> /dev/null
+	 			src/init/init_ipfs_python.sh 2>&1
 	 		else
-	 			src/init/init_python.sh 2>&1 >> /dev/null
+	            src/init/init_python.sh 2>&1
 			fi
 			INIT=$?
 			break
