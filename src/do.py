@@ -25,9 +25,8 @@ from web3.exceptions import (
 
 class EtnyPoXClient:
     # class variables
-    __user = None
+
     __address = None
-    __host = None
     __privateKey = None
     __contract_abi = None
     __etny = None
@@ -36,6 +35,9 @@ class EtnyPoXClient:
     __dorequest = 0
     __dohash = 0
     __ipfsnode = None
+    __ipfsgateway = None
+    __ipfsuser = None
+    __ipfspassword = None
     __client = None
     __scripthash = None
     __filesethash = None
@@ -51,7 +53,7 @@ class EtnyPoXClient:
         self.__w3 = Web3(Web3.HTTPProvider("https://bloxberg.ethernity.cloud"))
         self.__w3.middleware_onion.inject(geth_poa_middleware, layer=0)
 
-        self._acct = Account.privateKeyToAccount(self.__privateKey)
+        self.__acct = Account.privateKeyToAccount(self.__privateKey)
         self.__etny = self.__w3.eth.contract(
             address=self.__w3.toChecksumAddress("0x99738e909a62e2e4840a59214638828E082A9A2b"),
             abi=self.__contract_abi)
@@ -84,9 +86,9 @@ class EtnyPoXClient:
         parser.add_argument("-f", "--fileset", help="PATH of the fileset", required=True, default="")
         parser.add_argument("-r", "--redistribute", help="Check and redistribute IPFS payload after order validation",
                             required=False, action='store_true')
-        parser.add_argument("-g", "--gateway", help="IPFS Gateway host url", required=False, default="")
-        parser.add_argument("-u", "--user", help="IPFS Gateway username", required=False, default="")
-        parser.add_argument("-p", "--password", help="IPFS Gateway password", required=False, default="")
+        parser.add_argument("-g", "--ipfsgateway", help="IPFS Gateway host url", required=False, default="")
+        parser.add_argument("-u", "--ipfsuser", help="IPFS Gateway username", required=False, default="")
+        parser.add_argument("-p", "--ipfspassword", help="IPFS Gateway password", required=False, default="")
         return parser.parse_args()
 
     def __parse_arguments(self, arguments):
@@ -119,15 +121,15 @@ class EtnyPoXClient:
             self.__redistribute = True
         else:
             self.__redistribute = False
-        if arguments.user:
-            self.__user = format(arguments.user)
-        if arguments.password:
-            self.__password = format(arguments.password)
-        self.__host, status = self.__get_ipfs_address(
-            arguments.gateway if arguments.gateway != "" else 'http://127.0.0.1:5001')
+        if arguments.ipfsuser:
+            self.__ipfsuser = format(arguments.ipfsuser)
+        if arguments.ipfspassword:
+            self.__ipfspassword = format(arguments.ipfspassword)
+        self.__ipfsgateway = self.__get_ipfs_address(
+            arguments.ipfsgateway if arguments.ipfsgateway != "" else 'http://127.0.0.1:5001')
 
         # Set the default behaviour of do.py to use the local node, if gateway url (-h) is not specified
-        self.__local = arguments.gateway == ""
+        self.__local = arguments.ipfsgateway == ""
 
     @staticmethod
     def __get_ipfs_address(url):
@@ -148,9 +150,9 @@ class EtnyPoXClient:
     def __connect_ipfs_gateway(self):
         while True:
             try:
-                auth = None if self.__user is None and self.__password is None else (
-                    self.__user, self.__password)
-                self.__client = ipfshttpclient.connect(self.__host,
+                auth = None if self.__ipfsuser is None and self.__ipfspassword is None else (
+                    self.__ipfsuser, self.__ipfspassword)
+                self.__client = ipfshttpclient.connect(self.__ipfsgateway,
                                                        auth=auth)
                 if self.__local:
                     self.__ipfsnode = socket.gethostbyname('ipfs.ethernity.cloud')
