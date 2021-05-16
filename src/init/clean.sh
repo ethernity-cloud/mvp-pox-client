@@ -1,6 +1,6 @@
 #!/bin/bash
 cd .tmp/go-ipfs/
-./ipfs daemon 2>&1 >> /dev/null &
+./ipfs daemon 2>&1 > /dev/null &
 
 IP=`nslookup ipfs.ethernity.cloud 2>&1 | grep -A 1 ethernity.cloud | grep 'Address' | awk '{print $2}'`
 
@@ -20,7 +20,3 @@ else
 fi
 
 for hash in `./ipfs pin ls | awk '{print $1}'`; do ./ipfs pin rm $hash 2>&1 >> /dev/null ; done
-
-
-
-

@@ -76,9 +76,19 @@ then
 	esac
 
 else
-	echo -en "Cleaning up IPFS..."
-	src/init/clean.sh 2>&1 >> /dev/null
+
+if [ ! -z "$IPFS_GATEWAY_URL" ]
+then
+	echo "Using IPFS gateway: ${IPFS_GATEWAY_URL}"
+else
+    echo -en "Cleaning up IPFS..."
+	src/init/clean.sh 2>&1 > /dev/null
 	echo " done"
+fi
+
+
+
+
 fi
 
 if [ "$OS" == "Windows_NT" ]
