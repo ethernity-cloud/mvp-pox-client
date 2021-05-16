@@ -7,16 +7,21 @@ if [ ! -e .init-done ]
 then
 	echo "$0 was not initialized yet"
 	echo "Requirements fot the $0 are the following:
-1. ipfs daemon running and listening on localhost:5000
-2. python3 with pip
-3. ipfshttpclient python module
-4. web3 python module"
-	if [ "$OS" == "Windows_NT" ]
+* python3 with pip
+* ipfshttpclient python module
+* web3 python module"
+
+	if [ -z "$IPFS_GATEWAY_URL" ]
 	then
-		echo "5. Microsoft Visual Studio C++ Build Tools"
+		echo "* ipfs daemon running and listening on localhost:5000"
 	fi
 
-        while [ 1 == 1 ]
+	if [ "$OS" == "Windows_NT" ]
+	then
+		echo "* Microsoft Visual Studio C++ Build Tools"
+	fi
+
+	while [ 1 == 1 ]
 	do
 		echo -en "Proceed with automated initalization [Y/n]: "
 		read -r RESPONSE
