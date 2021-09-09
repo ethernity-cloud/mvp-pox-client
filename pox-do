@@ -8,7 +8,7 @@ then
 	echo "$0 was not initialized yet"
 	echo "Requirements fot the $0 are the following:
 * python3 with pip
-* ipfshttpclient python module
+* ipfshttpclient==0.8.0a2 python module
 * web3 python module"
 
 	if [ -z "$IPFS_GATEWAY_URL" ]
@@ -43,7 +43,7 @@ then
 			then
 	 			src/init/init_ipfs_python.sh 2>&1
 	 		else
-	            src/init/init_python.sh 2>&1
+				src/init/init_python.sh 2>&1
 			fi
 			INIT=$?
 			break
