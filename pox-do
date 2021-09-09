@@ -8,7 +8,7 @@ then
 	echo "$0 was not initialized yet"
 	echo "Requirements fot the $0 are the following:
 * python3 with pip
-* ipfshttpclient python module
+* ipfshttpclient==0.8.0a2 python module
 * web3 python module"
 
 	if [ -z "$IPFS_GATEWAY_URL" ]
@@ -69,6 +69,17 @@ then
                 echo "$0 requires python3-pip installed.  Please install it using your system's package manager."
                 exit
                 ;;
+	3)
+                echo "failed"
+                echo "$0 requires correct scripts. Please re-install your setup."
+                exit
+                ;;
+        4)
+                echo "failed"
+                echo "$0 requires curl installed.  Please install it using your system's package manager."
+                exit
+                ;;
+
         0)
 		echo "done"
             	;;
@@ -81,7 +92,7 @@ if [ ! -z "$IPFS_GATEWAY_URL" ]
 then
 	echo "Using IPFS gateway: ${IPFS_GATEWAY_URL}"
 else
-    echo -en "Cleaning up IPFS..."
+	echo -en "Cleaning up IPFS..."
 	src/init/clean.sh 2>&1 > /dev/null
 	echo " done"
 fi
