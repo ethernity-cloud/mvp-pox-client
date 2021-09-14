@@ -18,13 +18,28 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 
-# Current script version is 20210914_1006
+# Current script version is 20210914_1900
 # Dedicated to Ubuntu only
 # TBD: rpm-based distrs, windows setup (separate script)
 
+# Setup full stack of supplicant before installation
 if [ ! -x "$(command -v git)" ]; then
-   sudo apt install git
+   GIT=git
 fi
+
+if [ ! -x "$(command -v python3)" ]; then
+   PYTHON=python3
+fi
+
+if [ ! -x "$(command -v pip3)" ]; then
+   PIP=python3-pip
+fi
+
+if [ ! -x "$(command -v curl)" ]; then
+  CURL=curl
+fi
+
+sudo apt -y install ${GIT} ${PYTHON} ${PIP} ${CURL}
 
 if [ -d "mvp-pox-client" ]; then
    rm -rf mvp-pox-client
@@ -35,7 +50,7 @@ git clone https://github.com/ethernity-cloud/mvp-pox-client.git
 cd mvp-pox-client
 
 utils/linux/ethkey generate random > client_wallet.txt
-grep "address" client_wallet.txt | sed "s/address: //" > config && grep "secret" client_wallet.txt | sed "s/secret:  //" >> config
+grep "address" client_wallet.txt | sed "s/address: /ADDRESS=/" > config && grep "secret" client_wallet.txt | sed "s/secret:  /PRIVATE_KEY=/" >> config
 
 echo "To fund the wallet on testnet and start testing you should open the bloxberg faucet at:
 https://faucet.bloxberg.org
