@@ -18,28 +18,101 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 
-# Current script version is 20210914_1900
-# Dedicated to Ubuntu only
-# TBD: rpm-based distrs, windows setup (separate script)
+# Version is 20210922_1756
+# Tested distribution:
+# ubuntu-18.04.5-desktop-amd64
+# ubuntu-20.04.3-desktop-amd64
+# ubuntu-21.04-desktop-amd64
+# debian-11.0.0-amd64
+# debian-10.10.0-amd64
+# CentOS-7-x86_64-Everything-2009 - no chance it will work
+# CentOS-Stream-8-x86_64-20210907 - doesn't work at this moment, due to dependencies.
+# TBD: Windows setup (another script)
 
-# Setup full stack of supplicant before installation
+# Error exit codes:
+# 1 - run as root
+# 2 - doesn't have sudo permission
+# 3 - unsupported distribution
+# 4 - CentOS 8 error. It doesn't work at this moment, due to dependencies.
+
+PKG_MGR=""
+GIT=""
+PYTHON=""
+PIP=""
+CURL=""
+DNS=""
+
+if [[ "$(whoami)" == root ]]; then
+   echo "This script doesn't support run as root"
+   exit 1
+elif [ ! "$(sudo date)" ]; then
+   echo "You need sudo permission to run this script, consider add current user to wheel group with command usermod -aG wheel $(whoami) or usermod -aG sudo $(whoami)"
+   exit 2
+fi
+
+if [ -f /etc/os-release ]; then
+   case "$(grep -E "^NAME=" /etc/os-release)" in
+      *Ubuntu*)
+         if [[ ! "$(lsb_release -r)" == *18.04* && ! "$(lsb_release -r)" == *20.04* && ! "$(lsb_release -r)" == *21.04* ]]; then
+            echo "This script supports: Ubuntu desktop 18.04, 20.04, 21.04; Debian 10, 11 only"
+            exit 3
+         else
+            PKG_MGR="apt"
+         fi
+         ;;
+      *Debian*)
+         if [[ ! "$(lsb_release -r)" == *10* && ! "$(lsb_release -r)" == *11* ]]; then
+            echo "This script supports: Ubuntu desktop 18.04, 20.04, 21.04; Debian 10, 11 only"
+            exit 3
+         else
+            PKG_MGR="apt"
+         fi
+         ;;
+      *CentOS*)
+         if [ "$(grep -E "^VERSION_ID=" /etc/os-release | grep "8")" ]; then
+            PKG_MGR="yum"
+            exit 4
+         else
+            echo "This script supports: Ubuntu desktop 18.04, 20.04, 21.04; Debian 10, 11 only"
+	         exit 3
+         fi
+         ;;
+      *)
+         echo "This script supports: Ubuntu desktop 18.04, 20.04, 21.04; Debian 10, 11 only"
+         exit 3
+         ;;
+   esac
+else
+   echo "This script supports: Ubuntu desktop 18.04, 20.04, 21.04; Debian 10, 11 only"
+   exit 3
+fi
+
+# Setup full stack of supplicants before installation
 if [ ! -x "$(command -v git)" ]; then
-   GIT=git
+   GIT="git"
 fi
 
 if [ ! -x "$(command -v python3)" ]; then
-   PYTHON=python3
+   PYTHON="python3"
 fi
 
 if [ ! -x "$(command -v pip3)" ]; then
-   PIP=python3-pip
+   PIP="python3-pip"
 fi
 
 if [ ! -x "$(command -v curl)" ]; then
-  CURL=curl
+  CURL="curl"
 fi
 
-sudo apt -y install ${GIT} ${PYTHON} ${PIP} ${CURL}
+if [ ! -x "$(command -v nslookup)" ]; then
+   if [[ ${PKG_MGR} == apt ]]; then
+      DNS="dnsutils"
+   elif [[ ${PKG_MGR} == yum ]]; then
+      DNS="bind-utils"
+   fi
+fi
+
+sudo ${PKG_MGR} -y install ${GIT} ${PYTHON} ${PIP} ${CURL} ${DNS}
 
 if [ -d "mvp-pox-client" ]; then
    rm -rf mvp-pox-client
@@ -57,5 +130,5 @@ https://faucet.bloxberg.org
 Your address is $(grep "address" client_wallet.txt | sed "s/address: //")"
 
 if [ -x "$(command -v xdg-open)" ]; then
-   xdg-open https://faucet.bloxberg.org/
+   xdg-open https://faucet.bloxberg.org/ > /dev/null 2>&1
 fi
