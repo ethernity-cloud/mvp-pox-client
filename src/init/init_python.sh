@@ -1,4 +1,5 @@
 #!/bin/bash
+# version 20210922_1755
 
 if [ "$OS" == "Windows_NT" ]
 then
@@ -21,14 +22,14 @@ else
 fi
 
 if [ -x "$(command -v pip3)" ]; then
-   PIP=pip3
+   PIP="${PYTHON_BIN} -m pip"
 else
    exit 2
 fi
 
 echo -en "Installing Python3 dependencies... "
-$PIP install --upgrade pip --no-warn-script-location 2>&1 > /dev/null
-$PIP install ipfshttpclient==0.8.0a2 web3 psutil --upgrade --no-warn-script-location 2>&1 > /dev/null
+$PIP install --upgrade pip -qq > /dev/null 2>&1
+$PIP install ipfshttpclient==0.8.0a2 web3 psutil --upgrade -qq > /dev/null 2>&1
 echo "done"
 
 [ -d certs ] || mkdir certs
