@@ -81,7 +81,7 @@ class EtnyPoXClient:
         parser.add_argument("-n", "--instances", help="Number of instances to run simmultaneously (count)",
                             required=False, default="1")
         parser.add_argument("-i", "--image", help="IPFS location of docker repository in format [HASH:container]",
-                            required=False, default="QmYF7WuHAH4tr896YXxwahaBEWT6YPcagB1dpotGWtCbwS:etny-pynithy")
+                            required=False, default="QmeQiSC1dLMKv4BvpvjWt1Zeak9zj6TWgWhN7LLiRznJqC:etny-pynithy")
         parser.add_argument("-s", "--script", help="PATH of python script", required=True, default="")
         parser.add_argument("-f", "--fileset", help="PATH of the fileset", required=True, default="")
         parser.add_argument("-r", "--redistribute", help="Check and redistribute IPFS payload after order validation",
