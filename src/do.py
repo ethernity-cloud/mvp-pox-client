@@ -55,7 +55,7 @@ class EtnyPoXClient:
 
         self.__acct = Account.privateKeyToAccount(self.__privateKey)
         self.__etny = self.__w3.eth.contract(
-            address=self.__w3.toChecksumAddress("0x99738e909a62e2e4840a59214638828E082A9A2b"),
+            address=self.__w3.toChecksumAddress("0x549A6E06BB2084100148D50F51CF77a3436C3Ae7"),
             abi=self.__contract_abi)
 
         self.__connect_ipfs_gateway()
@@ -420,7 +420,7 @@ class EtnyPoXClient:
                     if block is not None and block.transactions is not None:
                         transactions = block["transactions"]
                         for transaction in transactions:
-                            if transaction["to"] == "0x99738e909a62e2e4840a59214638828E082A9A2b":
+                            if transaction["to"] == "0x549A6E06BB2084100148D50F51CF77a3436C3Ae7":
                                 transactioninput = self.__etny.decode_function_input(transaction.input)
                                 function = transactioninput[0]
                                 params = transactioninput[1]
@@ -444,7 +444,7 @@ class EtnyPoXClient:
                                      '######                         '
                                      '                                                                        ######')
                 self.__write_to_cert(self.__dohash,
-                                     '######  [INFO] contract address: 0x99738e909a62e2e4840a59214638828E082A9A2b  '
+                                     '######  [INFO] contract address: 0x549A6E06BB2084100148D50F51CF77a3436C3Ae7  '
                                      '                          ######')
                 self.__write_to_cert(self.__dohash,
                                      '######  [INFO] input transaction: ' + str(self.__dohash) + '   ######')
