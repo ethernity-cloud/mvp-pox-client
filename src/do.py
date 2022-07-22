@@ -148,14 +148,16 @@ class EtnyPoXClient:
 
     # @staticmethod
     def __connect_ipfs_gateway(self):
+        print('connecting to ipfs', self.__ipfsgateway)
         while True:
             try:
-                auth = None if self.__ipfsuser is None and self.__ipfspassword is None else (
-                    self.__ipfsuser, self.__ipfspassword)
-                self.__client = ipfshttpclient.connect(self.__ipfsgateway,
-                                                       auth=auth)
+                auth = None if self.__ipfsuser is None and self.__ipfspassword is None else (self.__ipfsuser, self.__ipfspassword)
+                print('client = ', self.__ipfsgateway, auth)
+                self.__client = ipfshttpclient.connect(self.__ipfsgateway,auth=auth)
+                print('clientddd = ', self.__ipfsgateway, auth)
                 if self.__local:
                     self.__ipfsnode = socket.gethostbyname('ipfs.ethernity.cloud')
+                    print('something here')
                     self.__client.bootstrap.add(
                         '/ip4/%s/tcp/4001/ipfs/QmRBc1eBt4hpJQUqHqn6eA8ixQPD3LFcUDsn6coKBQtia5' % self.__ipfsnode)
                 break

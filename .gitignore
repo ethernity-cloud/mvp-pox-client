@@ -2,3 +2,6 @@
 certs/*
 .init-done
 .tmp
+.venv
+.env
+__pychare__/
