@@ -113,5 +113,5 @@ if [ ! -z "$IPFS_GATEWAY_URL" ]; then set -- "$@" -g $IPFS_GATEWAY_URL; fi
 if [ ! -z "$IPFS_GATEWAY_PASSWORD" ]; then set -- "$@" -u $IPFS_GATEWAY_USERNAME; fi
 if [ ! -z "$IFS_GATEWAY_PASSWORD" ]; then set -- "$@" -p $IPFS_GATEWAY_PASSWORD; fi
 
-${PYTHON_BIN} src/do.py -a $ADDRESS -k $PRIVATE_KEY $@
-#${PYTHON_BIN} src/main.py -a $ADDRESS -k $PRIVATE_KEY $@
+#${PYTHON_BIN} src/do.py -a $ADDRESS -k $PRIVATE_KEY $@
+${PYTHON_BIN} src/main.py -a $ADDRESS -k $PRIVATE_KEY $@

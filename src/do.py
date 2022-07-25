@@ -22,6 +22,8 @@ from web3.exceptions import (
     # TransactionNotFound,
 )
 
+CONTRACT_ADDRESS = '0x549A6E06BB2084100148D50F51CF77a3436C3Ae7'
+CONTRACT_ADDRESS = '0x2f5b4cdaf5A03Cb9947F9213821d94B758D1f312'
 
 class EtnyPoXClient:
     # class variables
@@ -55,7 +57,7 @@ class EtnyPoXClient:
 
         self.__acct = Account.privateKeyToAccount(self.__privateKey)
         self.__etny = self.__w3.eth.contract(
-            address=self.__w3.toChecksumAddress("0x549A6E06BB2084100148D50F51CF77a3436C3Ae7"),
+            address=self.__w3.toChecksumAddress(CONTRACT_ADDRESS),
             abi=self.__contract_abi)
 
         self.__connect_ipfs_gateway()
@@ -190,9 +192,10 @@ class EtnyPoXClient:
             try:
                 if self.__local and self.__ipfsnode is not None:  # hasattr(self, 'ipfsnode'):
                     cmd = "%s swarm " \
-                          "connect /ip4/%s/tcp/4001/ipfs/QmRBc1eBt4hpJQUqHqn6eA8ixQPD3LFcUDsn6coKBQtia5 > %s" % (
+                          "connect /ip4/%s/tcp/4001/ipfs/QmRBc1eBt4hpJQUqHqn6eA8ixQPD3LFcUDsn6coKBQtia5 > %s 2>&1" % (
                               self.__get_ipfs_executable_path(), self.__ipfsnode,
                               self.__get_ipfs_output_file_path('ipfsconnect.txt'))
+                    print(cmd)
                     os.system(cmd)
             except Exception:
                 sys.stdout.write('*')
@@ -209,6 +212,7 @@ class EtnyPoXClient:
         return None
 
     def __check_ipfs_upload(self, file, recursive=False):
+        print('-----check ipfs upload')
         if self.__local:
             while True:
                 res = self.__add_to_ipfs(file, recursive)
@@ -270,8 +274,12 @@ class EtnyPoXClient:
 
         print(datetime.now(), "Sending payload to IPFS...")
 
+        print('before sending it')
+        print(self.__script)
         self.__scripthash = self.__upload_ipfs(self.__script)
+        print('self.__scripthash = ', self.__scripthash)
         self.__filesethash = self.__upload_ipfs(self.__fileset, True)
+        print('self.__filesethash = ', self.__filesethash)
 
         unicorn_txn = self.__etny.functions._addDORequest(
             self.__cpu, self.__memory, self.__storage, self.__bandwidth,
@@ -314,6 +322,7 @@ class EtnyPoXClient:
     def wait_for_processor(self):
         while True:
             order = self.find_order(self.__dorequest)
+            print('self.__dorequest = ',self.__dorequest, 'order = ',order)
             if order is not None:
                 print("")
                 print(datetime.now(), "Connected!")
@@ -373,7 +382,8 @@ class EtnyPoXClient:
             try:
                 result = self.__etny.caller(transaction={'from': self.__address})._getResultFromOrder(
                     order)
-            except Exception:
+            except Exception as e:
+                print(e, type(e), '-1')
                 sys.stdout.write('.')
                 sys.stdout.flush()
                 time.sleep(5)
@@ -389,14 +399,17 @@ class EtnyPoXClient:
                 while True:
                     try:
                         self.__client.get(result)
-                    except Exception:
+                    except Exception as e:
+                        print(e, type(e), '-2')
                         sys.stdout.write('.')
                         sys.stdout.flush()
                         time.sleep(1)
                         continue
                     else:
                         break
-
+                print('-----result = ')
+                print(result)
+                print('-----result!!! ')
                 file = os.path.dirname(os.path.realpath(__file__)) + '/../' + result
                 f = open(file)
                 content = f.read()
@@ -422,7 +435,7 @@ class EtnyPoXClient:
                     if block is not None and block.transactions is not None:
                         transactions = block["transactions"]
                         for transaction in transactions:
-                            if transaction["to"] == "0x549A6E06BB2084100148D50F51CF77a3436C3Ae7":
+                            if transaction["to"] == CONTRACT_ADDRESS:
                                 transactioninput = self.__etny.decode_function_input(transaction.input)
                                 function = transactioninput[0]
                                 params = transactioninput[1]
@@ -446,7 +459,7 @@ class EtnyPoXClient:
                                      '######                         '
                                      '                                                                        ######')
                 self.__write_to_cert(self.__dohash,
-                                     '######  [INFO] contract address: 0x549A6E06BB2084100148D50F51CF77a3436C3Ae7  '
+                                     '######  [INFO] contract address: '+CONTRACT_ADDRESS+'  '
                                      '                          ######')
                 self.__write_to_cert(self.__dohash,
                                      '######  [INFO] input transaction: ' + str(self.__dohash) + '   ######')

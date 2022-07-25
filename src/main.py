@@ -1,5 +1,6 @@
 #!/usr/bin/python3
 
+from email import message
 import time
 import ipfshttpclient
 from ipfshttpclient.exceptions import StatusError
@@ -14,7 +15,7 @@ from web3 import Web3
 from eth_account import Account
 from web3.middleware import geth_poa_middleware
 
-from web3.exceptions import TimeExhausted
+from web3.exceptions import TimeExhausted, ContractLogicError
 from config import os, parser, arguments, bcolors
 
 class EtnyPoXClient:
@@ -51,7 +52,7 @@ class EtnyPoXClient:
         # get arguments from command line or from config (.env, .env.config) files
         self.parse_args(parser = parser, arguments=arguments)
 
-
+    
         # base configs
         self._baseConfigs()
 
@@ -100,7 +101,7 @@ class EtnyPoXClient:
 
     def _log(self, message = '', mode = '_end'):
         mode = str(mode.upper() if type(mode) == str else bcolors[mode].name)
-        prefix = f"{bcolors[mode].value}{bcolors.BOLD.value}{bcolors[mode].name}{bcolors._END.value}: " if mode not in ['_END'] else ""
+        prefix = f"{bcolors[mode].value}{bcolors.BOLD.value}{bcolors[mode].name}{bcolors._END.value}: " if mode not in ['_END', 'BOLD', 'UNDERLINE'] else ""
         print(f"{prefix}{bcolors[mode].value}{str(message)}{bcolors._END.value}")
 
     def _readABI(self):
@@ -118,6 +119,7 @@ class EtnyPoXClient:
                 value = os.environ.get(arg.upper()) if value in ['None', None] and os.environ.get(arg.upper()) else value
                 setattr(self, f"_{arg}", value)
         self.__local = self._ipfsgateway == ""
+        self._log('contract_address = '+str(self._contract_address), "message")
 
     def __connect_ipfs_gateway(self):
         while True:
@@ -167,17 +169,19 @@ class EtnyPoXClient:
                 time.sleep(1)
                 continue
             except StatusError:
-                print("You have reached request limit, please wait or try again later")
+                self._log("You have reached request limit, please wait or try again later", 'error')
                 time.sleep(60)
                 continue
 
     def add_do_request(self):
         nonce = self.__w3.eth.get_transaction_count(self._address)
 
-        print(datetime.now(), "Sending payload to IPFS...")
+        self._log(str(datetime.now())+ " - Sending payload to IPFS...", 'message')
 
         self._scripthash = self.__upload_ipfs(self._script)
+        self._log('self._scripthash = '+str(self._scripthash), 'bold')
         self._filesethash = self.__upload_ipfs(self._fileset, True)
+        self._log('self._filesethash = '+str(self._filesethash), 'bold')
 
         unicorn_txn = self.__etny.functions._addDORequest(
             self._cpu, self._memory, self._storage, self._bandwidth,
@@ -193,7 +197,7 @@ class EtnyPoXClient:
         self.__w3.eth.sendRawTransaction(signed_txn.rawTransaction)
         transactionhash = self.__w3.toHex(self.__w3.sha3(signed_txn.rawTransaction))
        
-        self._log(str(datetime.now())+"Submitting transaction for DO request", 'info')
+        self._log(str(datetime.now())+" - Submitting transaction for DO request", 'message')
         receipt = None
         for i in range(100):
             try:
@@ -203,34 +207,39 @@ class EtnyPoXClient:
             except KeyError:
                 time.sleep(1)
                 continue
-            except Exception:
+            except Exception as e:
+                print(e)
                 raise
             else:
-                self._log(str(datetime.now())+ "Request %s created successfuly!" % self.__dorequest, 'info')
-                self._log(str(datetime.now())+ "TX Hash: %s" % transactionhash, 'info')
+                self._log(str(datetime.now())+ " - Request %s created successfuly!" % self.__dorequest, 'message')
+                self._log(str(datetime.now())+ (f" - TX Hash: {transactionhash}, address: {self._address} "), 'bold')
                 self.__dohash = transactionhash
                 break
 
         if receipt is None:
-            self._log(str(datetime.now())+ "Unable to create request, please check conectivity with bloxberg node", 'info')
+            self._log(str(datetime.now())+ " - Unable to create request, please check conectivity with bloxberg node", 'warning')
             sys.exit()
 
 
     def wait_for_processor(self):
-        
+        self._log(str(datetime.now())+ " - Waiting for Ethernity network...", "message")
         while True:
-            order = self.find_order(self.__dorequest)
+            try:
+                order = self.find_order(self.__dorequest)
+            except Exception as e:
+                print('--------', str(e))
+            print('self.__dorequest = ', self._dorequest, 'order = ', order)
             if order is not None:
                 print("")
-                self._log(str(datetime.now())+ "Connected!", "info")
+                self._log(str(datetime.now())+ " - Connected!", "info")
                 self.approve_order(order)
 
                 if self._redistribute is True and self.__local:
-                    self._log(str(datetime.now())+ "Checking IPFS payload distribution...", "info")
+                    self._log(str(datetime.now())+ " - Checking IPFS payload distribution...", "message")
                     scripthash = self.__check_ipfs_upload(self.__script)
                     filesethash = self.__check_ipfs_upload(self.__fileset, True)
                     if scripthash is not None and filesethash is not None:
-                        self._log(str(datetime.now())+ "IPFS payload distribution confirmed!", "info")
+                        self._log(str(datetime.now())+ " - IPFS payload distribution confirmed!", "info")
                 self.get_result_from_order(order)
             else:
                 time.sleep(5)
@@ -272,35 +281,46 @@ class EtnyPoXClient:
             except Exception:
                 raise
             else:
-                print(datetime.now(), "Order %s approved successfuly!" % order)
-                print(datetime.now(), "TX Hash: %s" % transactionhash)
+                self._log(str(datetime.now())+ " - Order %s approved successfuly!" % order, 'info')
+                self._log(str(datetime.now())+ " - TX Hash: %s" % transactionhash, 'message')
                 break
 
         if receipt is None:
-            print(datetime.now(), "Unable to approve order, please check connectivity with bloxberg node")
+            print(datetime.now(), " Unable to approve order, please check connectivity with bloxberg node")
             sys.exit()
 
+    def rPrintOutput(self, message, repeats_count = 2):
+        [print(message) for x in range(repeats_count)]
+
     def get_result_from_order(self, order):
-        print(datetime.now(), "Waiting for task to finish...")
+        try:
+            self._log(str(datetime.now())+ " - Waiting for task to finish...", "message")
+            self._log('order_id = '+str(order), "message")
+        except Exception as e:
+            print('----|----', str(e))
+
         while True:
             result = 0
             try:
-                result = self.__etny.caller(transaction={'from': self._address})._getResultFromOrder(
-                    order)
-            except Exception:
+                result = self.__etny.caller(transaction={'from': self._address})._getResultFromOrder(order)
+                self._log("\norder hash = "+ str(result), "info")
+            except Exception as e:
+                if type(e) != ContractLogicError:
+                    print(e, type(e), '-1')
                 sys.stdout.write('.')
                 sys.stdout.flush()
                 time.sleep(5)
                 continue
             else:
                 print("")
-                self._log(str(datetime.now())+ "Found result hash: %s" % result, 'info')
-                self._log(str(datetime.now())+ "Fetching result from IPFS...", 'info')
+                self._log(str(datetime.now())+ " - Found result hash: %s" % result, 'info')
+                self._log(str(datetime.now())+ " - Fetching result from IPFS...", 'message')
 
                 while True:
                     try:
                         self.__client.get(result)
                     except Exception:
+                        print(e, type(e), '-2')
                         sys.stdout.write('.')
                         sys.stdout.flush()
                         time.sleep(1)
@@ -309,14 +329,13 @@ class EtnyPoXClient:
                         break
 
                 file = os.path.dirname(os.path.realpath(__file__)) + '/../' + result
-                f = open(file)
-                content = f.read()
-                f.close()
+                with open(file) as f:
+                    content = f.read()
                 os.unlink(file)
 
-                self._log(str(datetime.now())+ "Certificate information is shown below this line", 'info')
-                print('')
-                print('')
+                self.rPrintOutput(message = '', repeats_count=1)
+                self._log(str(datetime.now())+ " - Certificate information is shown below this line", 'underline')
+                self.rPrintOutput(message = '')
 
                 transaction = self.__w3.eth.get_transaction(self.__dohash)
                 block = self.__w3.eth.get_block(transaction['blockNumber'])
@@ -344,41 +363,40 @@ class EtnyPoXClient:
                                     resultblocktimestamp = (block['timestamp'])
                                     resultblockdatetime = datetime.fromtimestamp(resultblocktimestamp)
 
-                self.__write_to_cert(self, self.__dohash, ('#' * 109))
-                self.__write_to_cert(self, self.__dohash, f"{'#' * 41} bloxberg PoX certificate {'#' * 42}")
-                self.__write_to_cert(self, self.__dohash, ('#' * 109))
-                self.__write_to_cert(self, self.__dohash, f"{'#' * 6}{' ' * 97}{'#' * 6}")
-                self.__write_to_cert(self, self.__dohash, f"{'#' * 6}  [INFO] contract address: {self._contract_address} {' ' * 26}{'#' * 6}")
-                self.__write_to_cert(self, self.__dohash, f"{'#' * 6}  [INFO] input transaction: {self.__dohash}   {'#' * 6}")
-                self.__write_to_cert(self, self.__dohash, f"{'#' * 6}  [INFO] output transaction:  {resulttransactionhash.hex()}  {'#' * 6}")
-                self.__write_to_cert(self, self.__dohash, f"{'#' * 6}  [INFO] PoX processing order: {str(order).zfill(16)}{' ' * 50}{'#' * 6}")
-                self.__write_to_cert(self, self.__dohash, f"{'#' * 6}{' ' * 97}{'#' * 6}")
-                self.__write_to_cert(self, self.__dohash, f"{'#' * 6}  [INPUT] public image: {self.__imageHash}{' ' * 14}{'#' * 6}")
-                self.__write_to_cert(self, self.__dohash, f"{'#' * 6}  [INPUT] public script: {self.__scripthash}{' ' * 26}{'#' * 6}")
-                self.__write_to_cert(self, self.__dohash, f"{'#' * 6}  [INPUT] public fileset: {self.__filesethash}{' ' * 25}{'#' * 6}")
-                self.__write_to_cert(self, self.__dohash, f"{'#' * 6}  [INPUT] timestamp: {str(blockdatetime)} [{str(blocktimestamp)}]{' ' * 44}{'#' * 6}")
-                self.__write_to_cert(self, self.__dohash, f"{'#' * 6}  [OUTPUT] public result: {result} {' ' * 25}{'#' * 6}")
-                self.__write_to_cert(self, self.__dohash, f"{'#' * 6}  [OUTPUT] timestamp: {str(resultblockdatetime)} [{str(resultblocktimestamp)}] {' ' * 43}{'#' * 6}")
-                self.__write_to_cert(self, self.__dohash, f"{'#' * 6}{' ' * 97}{'#' * 6}")
-                self.__write_to_cert(self, self.__dohash, ('#' * 109))
-                self.__write_to_cert(self, self.__dohash, ('#' * 109))
-                self.__write_to_cert(self, self.__dohash, ('#' * 109))
+                self.__write_to_cert(self.__dohash, ('#' * 109))
+                self.__write_to_cert(self.__dohash, f"{'#' * 41} bloxberg PoX certificate {'#' * 42}")
+                self.__write_to_cert(self.__dohash, ('#' * 109))
+                self.__write_to_cert(self.__dohash, f"{'#' * 6}{' ' * 97}{'#' * 6}")
+                self.__write_to_cert(self.__dohash, f"{'#' * 6}  [INFO] contract address: {self._contract_address} {' ' * 27}{'#' * 6}")
+                self.__write_to_cert(self.__dohash, f"{'#' * 6}  [INFO] input transaction: {self.__dohash}   {'#' * 6}")
+                self.__write_to_cert(self.__dohash, f"{'#' * 6}  [INFO] output transaction: {resulttransactionhash.hex()}  {'#' * 6}")
+                self.__write_to_cert(self.__dohash, f"{'#' * 6}  [INFO] PoX processing order: {str(order).zfill(16)}{' ' * 50}{'#' * 6}")
+                self.__write_to_cert(self.__dohash, f"{'#' * 6}{' ' * 97}{'#' * 6}")
+                self.__write_to_cert(self.__dohash, f"{'#' * 6}  [INPUT] public image: {self._image}{' ' * 14}{'#' * 6}")
+                self.__write_to_cert(self.__dohash, f"{'#' * 6}  [INPUT] public script: {self._scripthash}{' ' * 26}{'#' * 6}")
+                self.__write_to_cert(self.__dohash, f"{'#' * 6}  [INPUT] public fileset: {self._filesethash}{' ' * 25}{'#' * 6}")
+                self.__write_to_cert(self.__dohash, f"{'#' * 6}  [INPUT] timestamp: {str(blockdatetime)} [{str(blocktimestamp)}]{' ' * 44}{'#' * 6}")
+                self.__write_to_cert(self.__dohash, f"{'#' * 6}  [OUTPUT] public result: {result} {' ' * 24}{'#' * 6}")
+                self.__write_to_cert(self.__dohash, f"{'#' * 6}  [OUTPUT] timestamp: {str(resultblockdatetime)} [{str(resultblocktimestamp)}] {' ' * 42}{'#' * 6}")
+                self.__write_to_cert(self.__dohash, f"{'#' * 6}{' ' * 97}{'#' * 6}")
+                self.__write_to_cert(self.__dohash, ('#' * 109))
+                self.__write_to_cert(self.__dohash, ('#' * 109))
+                self.__write_to_cert(self.__dohash, ('#' * 109))
 
-                print('')
-                print('')
+                [print('') for x in range(2)]
+                self.rPrintOutput(message = '')
 
-                self._log(str(datetime.now())+ "Actual result of the processing is printed below this line", 'info')
-                print('')
-                print('')
-
+                self._log(str(datetime.now())+ " - Actual result of the processing is printed below this line", 'underline')
+                self.rPrintOutput(message = '')
                 print(content)
 
                 print('')
 
+                sys.exit()
+
     def __write_to_cert(self, dohash, text):
-        f = open('certs/' + dohash, 'a+')
-        f.write(text + '\n')
-        f.close()
+        with open('certs/' + dohash, 'a+') as r:
+            r.write(text + '\n')
         print(text)
                 
 
