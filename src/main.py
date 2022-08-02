@@ -1,4 +1,5 @@
 #!/usr/bin/python3
+# -*- coding: utf-8 -*-
 
 from email import message
 import time
@@ -212,7 +213,7 @@ class EtnyPoXClient:
                 raise
             else:
                 self._log(str(datetime.now())+ " - Request %s created successfuly!" % self.__dorequest, 'message')
-                self._log(str(datetime.now())+ (f" - TX Hash: {transactionhash}, address: {self._address} "), 'bold')
+                self._log(str(datetime.now())+ (f" - TX Hash 1: {transactionhash}, address: {self._address} "), 'bold')
                 self.__dohash = transactionhash
                 break
 
@@ -222,13 +223,12 @@ class EtnyPoXClient:
 
 
     def wait_for_processor(self):
-        self._log(str(datetime.now())+ " - Waiting for Ethernity network...", "message")
+        self._log(str(datetime.now())+ f" - Waiting for Ethernity network... {str(self.__dorequest)}", "message")
         while True:
             try:
                 order = self.find_order(self.__dorequest)
             except Exception as e:
                 print('--------', str(e))
-            print('self.__dorequest = ', self._dorequest, 'order = ', order)
             if order is not None:
                 print("")
                 self._log(str(datetime.now())+ " - Connected!", "info")
@@ -278,15 +278,16 @@ class EtnyPoXClient:
                 continue
             except TimeExhausted:
                 raise
-            except Exception:
+            except Exception as e:
+                print('erorr = ', e)
                 raise
             else:
                 self._log(str(datetime.now())+ " - Order %s approved successfuly!" % order, 'info')
-                self._log(str(datetime.now())+ " - TX Hash: %s" % transactionhash, 'message')
+                self._log(str(datetime.now())+ " - TX Hash 2: %s" % transactionhash, 'message')
                 break
 
         if receipt is None:
-            print(datetime.now(), " Unable to approve order, please check connectivity with bloxberg node")
+            self._log(str(datetime.now())+ " - Unable to approve order, please check connectivity with bloxberg node", "warning")
             sys.exit()
 
     def rPrintOutput(self, message, repeats_count = 2):
@@ -302,8 +303,9 @@ class EtnyPoXClient:
         while True:
             result = 0
             try:
+                orderInfo = self.__etny.caller()._getOrder(order)
+                print(orderInfo)
                 result = self.__etny.caller(transaction={'from': self._address})._getResultFromOrder(order)
-                self._log("\norder hash = "+ str(result), "info")
             except Exception as e:
                 if type(e) != ContractLogicError:
                     print(e, type(e), '-1')
@@ -312,7 +314,7 @@ class EtnyPoXClient:
                 time.sleep(5)
                 continue
             else:
-                print("")
+                self.rPrintOutput(message = '', repeats_count=1)
                 self._log(str(datetime.now())+ " - Found result hash: %s" % result, 'info')
                 self._log(str(datetime.now())+ " - Fetching result from IPFS...", 'message')
 
@@ -383,7 +385,6 @@ class EtnyPoXClient:
                 self.__write_to_cert(self.__dohash, ('#' * 109))
                 self.__write_to_cert(self.__dohash, ('#' * 109))
 
-                [print('') for x in range(2)]
                 self.rPrintOutput(message = '')
 
                 self._log(str(datetime.now())+ " - Actual result of the processing is printed below this line", 'underline')
@@ -399,6 +400,52 @@ class EtnyPoXClient:
             r.write(text + '\n')
         print(text)
                 
+
+    def __check_ipfs_upload(self, file, recursive=False):
+        print('-----check ipfs upload')
+        if self.__local:
+            while True:
+                res = self.__add_to_ipfs(file, recursive)
+
+                sys.stdout.write('.')
+                sys.stdout.flush()
+
+                if isinstance(res, list):
+                    for item in res:
+                        return self.__process_ipfs_result(item)
+                else:
+                    return self.__process_ipfs_result(res)
+
+                sys.stdout.write('*')
+                sys.stdout.flush()
+                self.__restart_ipfs()
+
+        return None
+
+    def __process_ipfs_result(self, resultitem):
+        retries = 0
+        while retries < 3:
+            try:
+                cmd = "%s swarm connect /ip4/%s/tcp/4001/ipfs/%s > %s" % (
+                    self.__get_ipfs_executable_path(), 
+                    self.__ipfsnode,
+                    self._ipfshash,
+                    self.__get_ipfs_output_file_path('ipfsconnect.txt'))
+                print(cmd)
+                os.system(cmd)
+                time.sleep(1)
+                for dht in self.__client.dht.findprovs(resultitem['Hash'], timeout=10):
+                    if dht['Responses'] is not None:
+                        for response in dht['Responses']:
+                            if response['ID'] == self._ipfshash:
+                                sys.stdout.write('#')
+                                sys.stdout.flush()
+                                return resultitem['Hash']
+            except Exception:
+                pass
+            sys.stdout.write('.')
+            sys.stdout.flush()
+            retries += 1
 
 if __name__ == '__main__':
     print('-----------')
