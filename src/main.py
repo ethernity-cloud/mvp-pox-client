@@ -44,6 +44,7 @@ class EtnyPoXClient:
     _bandwidth = None
     _contract_address = None
     _redistribute = None
+    _executable_node = ""
 
     def __init__(self):
 
@@ -184,11 +185,21 @@ class EtnyPoXClient:
         self._filesethash = self.__upload_ipfs(self._fileset, True)
         self._log('self._filesethash = '+str(self._filesethash), 'bold')
 
-        unicorn_txn = self.__etny.functions._addDORequest(
-            self._cpu, self._memory, self._storage, self._bandwidth,
-            self._duration, self._instances, 0,
-            self._image, self._scripthash, self._filesethash, ""
-        ).buildTransaction({
+        _params = [
+            self._cpu, 
+            self._memory, 
+            self._storage, 
+            self._bandwidth,
+            self._duration, 
+            self._instances, 
+            0,
+            self._image, 
+            self._scripthash, 
+            self._filesethash, 
+            self._executable_node
+        ]
+        print(_params)
+        unicorn_txn = self.__etny.functions._addDORequest(*_params).buildTransaction({
             'gas': 1000000,
             'chainId': 8995,
             'nonce': nonce,

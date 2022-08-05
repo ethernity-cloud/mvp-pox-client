@@ -34,9 +34,10 @@ parser.add_argument("-g", "--ipfshash", help="IPFS Gateway host url", default="Q
 parser.add_argument("-u", "--ipfsuser", help="IPFS Gateway username", default="")
 parser.add_argument("-p", "--ipfspassword", help="IPFS Gateway password", default="")
 parser.add_argument("-l", "--contract_address", help="constractaddress")
+parser.add_argument("-x", "--executable_node", help="executable node address", default="")
 
 
 arguments = {
-    str: ['address', 'private_key', 'image', 'script', 'fileset', 'redistribute', 'ipfsgateway', 'ipfshash', 'ipfsuser', 'ipfspassword', 'contract_address'],
+    str: ['address', 'private_key', 'image', 'script', 'fileset', 'redistribute', 'ipfsgateway', 'ipfshash', 'ipfsuser', 'ipfspassword', 'contract_address', 'executable_node'],
     int: ['cpu', 'memory', 'storage', 'storage', 'bandwidth', 'duration', 'instances']
 }
