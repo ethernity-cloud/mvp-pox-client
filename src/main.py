@@ -5,6 +5,7 @@ from email import message
 import time
 import ipfshttpclient
 from ipfshttpclient.exceptions import StatusError
+from ipfshttpclient.client.base import ResponseBase
 import ntpath
 import urllib.parse
 import psutil
@@ -18,6 +19,7 @@ from web3.middleware import geth_poa_middleware
 
 from web3.exceptions import TimeExhausted, ContractLogicError
 from config import os, parser, arguments, bcolors
+from typing import Union
 
 class EtnyPoXClient:
     # class variables
@@ -52,67 +54,48 @@ class EtnyPoXClient:
         self._readABI()
 
         # get arguments from command line or from config (.env, .env.config) files
-        self.parse_args(parser = parser, arguments=arguments)
+        self._parse_args(parser = parser, arguments=arguments)
     
         # base configs
         self._baseConfigs()
 
         # connect to ipfs
-        self.__connect_ipfs_gateway()
+        self._connect_ipfs_gateway()
 
         # do request
-        self.add_do_request()
+        self._add_do_request()
 
         # main loop
-        self.wait_for_processor()
+        self._wait_for_processor()
 
     @property
-    def __get_ipfs_address(self):
+    def __get_ipfs_address(self) -> str:
         url = 'http://127.0.0.1:5001' if not self._ipfsgateway else self._ipfsgateway
         addr = urllib.parse.urlsplit(url)
         return '/'.join(['/dns', addr.hostname, 'tcp', str(addr.port), addr.scheme])
 
     @property
-    def __get_ipfs_executable_path(self):
+    def __get_ipfs_executable_path(self) -> str:
         return os.path.join('.tmp', 'go-ipfs', 'ipfs')
 
-    def __get_ipfs_output_file_path(self, file):
-        if not os.path.isdir(os.path.join('.tmp')):
-            os.mkdir(os.path.join('.tmp'))
-        return os.path.join('.tmp', file)
+    @property
+    def __transaction_object(self) -> object:
+        nonce = self.__w3.eth.get_transaction_count(self._address)
+        return {
+            'gas': 1000000,
+            'chainId': 8995,
+            'nonce': nonce,
+            'gasPrice': self.__w3.toWei("1", "mwei"),
+        }
 
-    def __restart_ipfs(self):
-        if self.__local:
-            for proc in psutil.process_iter():
-                if proc.name() == "ipfs.exe":
-                    proc.kill()
-                if proc.name() == "ipfs":
-                    proc.kill()
-            cmd = 'start /B "" "%s" daemon > %s' % (self.__get_ipfs_executable_path, self.__get_ipfs_output_file_path('ipfsoutput.txt'))
-            print(cmd)
-            os.system(cmd)
-        return None
-        
-    def _baseConfigs(self):
-        self.__w3 = Web3(Web3.HTTPProvider("https://bloxberg.ethernity.cloud"))
-        self.__w3.middleware_onion.inject(geth_poa_middleware, layer=0)
-
-        self.__acct = Account.privateKeyToAccount(self._private_key)
-        self.__etny = self.__w3.eth.contract(address=self.__w3.toChecksumAddress(self._contract_address), abi=self.__contract_abi)
-
-    def _log(self, message = '', mode = '_end'):
-        mode = str(mode.upper() if type(mode) == str else bcolors[mode].name)
-        prefix = f"{bcolors[mode].value}{bcolors.BOLD.value}{bcolors[mode].name}{bcolors._END.value}: " if mode not in ['_END', 'BOLD', 'UNDERLINE'] else ""
-        print(f"{prefix}{bcolors[mode].value}{str(message)}{bcolors._END.value}")
-
-    def _readABI(self):
+    def _readABI(self) -> None:
         try:
             with open(os.path.dirname(os.path.realpath(__file__)) + '/pox.abi') as f:
                 self.__contract_abi = f.read()
         except FileNotFoundError as e:
-            self._log(e, 'ERROR')
+            self.__log(e, 'ERROR')
 
-    def parse_args(self, parser, arguments):
+    def _parse_args(self, parser, arguments) -> None:
         parser = parser.parse_args()
         for args_type, args in arguments.items():
             for arg in args:
@@ -120,9 +103,16 @@ class EtnyPoXClient:
                 value = os.environ.get(arg.upper()) if value in ['None', None] and os.environ.get(arg.upper()) else value
                 setattr(self, f"_{arg}", value)
         self.__local = self._ipfsgateway == ""
-        self._log('contract_address = '+str(self._contract_address), "message")
+        self.__log('contract_address = '+str(self._contract_address), "message")
 
-    def __connect_ipfs_gateway(self):
+    def _baseConfigs(self) -> None:
+        self.__w3 = Web3(Web3.HTTPProvider("https://bloxberg.ethernity.cloud"))
+        self.__w3.middleware_onion.inject(geth_poa_middleware, layer=0)
+
+        self.__acct = Account.privateKeyToAccount(self._private_key)
+        self.__etny = self.__w3.eth.contract(address=self.__w3.toChecksumAddress(self._contract_address), abi=self.__contract_abi)
+
+    def _connect_ipfs_gateway(self) -> None:
         while True:
             try:
                 auth = None if not self._ipfsuser and not self._ipfspassword else (self._ipfsuser, self._ipfspassword)
@@ -132,57 +122,18 @@ class EtnyPoXClient:
                     self.__client.bootstrap.add(f'/ip4/{self.__ipfsnode}/tcp/4001/ipfs/{self._ipfshash}')
                 break
             except Exception as e:
-                self._log(e, 'error')
-                sys.stdout.write('/')
-                sys.stdout.flush()
+                self.__log(e, 'error')
+                self.__sys_stdout(char='/')
                 time.sleep(2)
                 self.__restart_ipfs()
                 
-
-    def __upload_ipfs(self, file, recursive=False):
-        while True:
-            try:
-                if self.__local and self.__ipfsnode is not None:  # hasattr(self, 'ipfsnode'):
-                    cmd = "%s swarm connect /ip4/%s/tcp/4001/ipfs/%s > %s" % (
-                              self.__get_ipfs_executable_path, 
-                              self.__ipfsnode,
-                              self._ipfshash,
-                              self.__get_ipfs_output_file_path('ipfsconnect.txt'))
-                    os.system(cmd)
-            except Exception as e:
-                sys.stdout.write('*')
-                sys.stdout.flush()
-                continue
-            res = self.__add_to_ipfs(file, recursive)
-
-            if isinstance(res, list):
-                for item in res:
-                    if item['Name'] == ntpath.basename(file):
-                        return item['Hash']
-            else:
-                return res['Hash']
-    
-    def __add_to_ipfs(self, file, recursive=False):
-        while True:
-            try:
-                return self.__client.add(file, recursive=recursive)
-            except Exception:
-                time.sleep(1)
-                continue
-            except StatusError:
-                self._log("You have reached request limit, please wait or try again later", 'error')
-                time.sleep(60)
-                continue
-
-    def add_do_request(self):
-        nonce = self.__w3.eth.get_transaction_count(self._address)
-
-        self._log(str(datetime.now())+ " - Sending payload to IPFS...", 'message')
+    def _add_do_request(self) -> None:
+        self.__log(f"{datetime.now()} - Sending payload to IPFS...", 'message')
 
         self._scripthash = self.__upload_ipfs(self._script)
-        self._log('self._scripthash = '+str(self._scripthash), 'bold')
+        self.__log('self._scripthash = '+str(self._scripthash), 'bold')
         self._filesethash = self.__upload_ipfs(self._fileset, True)
-        self._log('self._filesethash = '+str(self._filesethash), 'bold')
+        self.__log('self._filesethash = '+str(self._filesethash), 'bold')
 
         _params = [
             self._cpu, 
@@ -198,17 +149,12 @@ class EtnyPoXClient:
             self._node
         ]
         print(_params)
-        unicorn_txn = self.__etny.functions._addDORequest(*_params).buildTransaction({
-            'gas': 1000000,
-            'chainId': 8995,
-            'nonce': nonce,
-            'gasPrice': self.__w3.toWei("1", "mwei"),
-        })
+        unicorn_txn = self.__etny.functions._addDORequest(*_params).buildTransaction(self.__transaction_object)
         signed_txn = self.__w3.eth.account.sign_transaction(unicorn_txn, private_key=self.__acct.key)
         self.__w3.eth.sendRawTransaction(signed_txn.rawTransaction)
         transactionhash = self.__w3.toHex(self.__w3.sha3(signed_txn.rawTransaction))
        
-        self._log(str(datetime.now())+" - Submitting transaction for DO request", 'message')
+        self.__log(str(datetime.now())+" - Submitting transaction for DO request", 'message')
         receipt = None
         for i in range(100):
             try:
@@ -222,41 +168,42 @@ class EtnyPoXClient:
                 print(e)
                 raise
             else:
-                self._log(str(datetime.now())+ " - Request %s created successfuly!" % self.__dorequest, 'message')
-                self._log(str(datetime.now())+ (f" - TX Hash 1: {transactionhash}, address: {self._address} "), 'bold')
+                self.__log(f"{datetime.now()} - Request {self.__dorequest} created successfuly!", 'message')
+                self.__log(str(datetime.now())+ (f" - TX Hash 1: {transactionhash}, address: {self._address} "), 'bold')
                 self.__dohash = transactionhash
                 break
 
         if receipt is None:
-            self._log(str(datetime.now())+ " - Unable to create request, please check conectivity with bloxberg node", 'warning')
+            self.__log(f"{datetime.now()} - Unable to create request, please check conectivity with bloxberg node", 'warning')
             sys.exit()
 
-
-    def wait_for_processor(self):
-        self._log(str(datetime.now())+ f" - Waiting for Ethernity network... {str(self.__dorequest)}", "message")
+    def _wait_for_processor(self) -> None:
+        self.__log(str(datetime.now())+ f" - Waiting for Ethernity network... {str(self.__dorequest)}", "message")
         while True:
             try:
-                order = self.find_order(self.__dorequest)
+                order = self.__find_order(self.__dorequest)
             except Exception as e:
                 print('--------', str(e))
             if order is not None:
                 print("")
-                self._log(str(datetime.now())+ " - Connected!", "info")
-                self.approve_order(order)
+                self.__log(f"{datetime.now()} - Connected!", "info")
+                if self.__approve_order(order):
+                    break
 
                 if self._redistribute is True and self.__local:
-                    self._log(str(datetime.now())+ " - Checking IPFS payload distribution...", "message")
+                    self.__log(f"{datetime.now()} - Checking IPFS payload distribution...", "message")
                     scripthash = self.__check_ipfs_upload(self.__script)
                     filesethash = self.__check_ipfs_upload(self.__fileset, True)
                     if scripthash is not None and filesethash is not None:
-                        self._log(str(datetime.now())+ " - IPFS payload distribution confirmed!", "info")
-                self.get_result_from_order(order)
+                        self.__log(f"{datetime.now()} - IPFS payload distribution confirmed!", "info")
+                if self.__get_result_from_order(order):
+                    break
             else:
                 time.sleep(5)
     
-    def find_order(self, doreq):
-        sys.stdout.write('.')
-        sys.stdout.flush()
+    
+    def __find_order(self, doreq) -> Union[int, None]:
+        self.__sys_stdout()
         count = self.__etny.functions._getOrdersCount().call()
         for i in range(count - 1, count - 5, -1):
             order = self.__etny.caller()._getOrder(i)
@@ -264,16 +211,8 @@ class EtnyPoXClient:
                 return i
         return None
 
-
-    def approve_order(self, order):
-        nonce = self.__w3.eth.get_transaction_count(self._address)
-
-        unicorn_txn = self.__etny.functions._approveOrder(order).buildTransaction({
-            'gas': 1000000,
-            'chainId': 8995,
-            'nonce': nonce,
-            'gasPrice': self.__w3.toWei("1", "mwei"),
-        })
+    def __approve_order(self, order) -> bool:
+        unicorn_txn = self.__etny.functions._approveOrder(order).buildTransaction(self.__transaction_object)
 
         signed_txn = self.__w3.eth.account.sign_transaction(unicorn_txn, private_key=self.__acct.key)
         self.__w3.eth.send_raw_transaction(signed_txn.rawTransaction)
@@ -292,21 +231,19 @@ class EtnyPoXClient:
                 print('erorr = ', e)
                 raise
             else:
-                self._log(str(datetime.now())+ " - Order %s approved successfuly!" % order, 'info')
-                self._log(str(datetime.now())+ " - TX Hash 2: %s" % transactionhash, 'message')
+                self.__log(f"{datetime.now()} - Order {order} approved successfuly!" , 'info')
+                self.__log(f"{datetime.now()} - TX Hash 2: {transactionhash}", 'message')
                 break
 
         if receipt is None:
-            self._log(str(datetime.now())+ " - Unable to approve order, please check connectivity with bloxberg node", "warning")
-            sys.exit()
+            self.__log(f"{datetime.now()} - Unable to approve order, please check connectivity with bloxberg node", "warning")
+            return True
+        return False
 
-    def rPrintOutput(self, message, repeats_count = 2):
-        [print(message) for x in range(repeats_count)]
-
-    def get_result_from_order(self, order):
+    def __get_result_from_order(self, order) -> bool:
         try:
-            self._log(str(datetime.now())+ " - Waiting for task to finish...", "message")
-            self._log('order_id = '+str(order), "message")
+            self.__log(f"{datetime.now()} - Waiting for task to finish...", "message")
+            self.__log('order_id = '+str(order), "message")
         except Exception as e:
             print('----|----', str(e))
 
@@ -319,22 +256,21 @@ class EtnyPoXClient:
             except Exception as e:
                 if type(e) != ContractLogicError:
                     print(e, type(e), '-1')
-                sys.stdout.write('.')
-                sys.stdout.flush()
+                self.__sys_stdout()
                 time.sleep(5)
                 continue
             else:
-                self.rPrintOutput(message = '', repeats_count=1)
-                self._log(str(datetime.now())+ " - Found result hash: %s" % result, 'info')
-                self._log(str(datetime.now())+ " - Fetching result from IPFS...", 'message')
+                self.__rPrintOutput(message = '', repeats_count=1)
+                self.__log(f"{datetime.now()} - Found result hash: {result}", 'info')
+
+                self.__log(f"{datetime.now()} - Fetching result from IPFS...", 'message')
 
                 while True:
                     try:
                         self.__client.get(result)
                     except Exception:
                         print(e, type(e), '-2')
-                        sys.stdout.write('.')
-                        sys.stdout.flush()
+                        self.__sys_stdout()
                         time.sleep(1)
                         continue
                     else:
@@ -345,16 +281,11 @@ class EtnyPoXClient:
                     content = f.read()
                 os.unlink(file)
 
-                self.rPrintOutput(message = '', repeats_count=1)
-                self._log(str(datetime.now())+ " - Certificate information is shown below this line", 'underline')
-                self.rPrintOutput(message = '')
+                self.__rPrintOutput(message = '', repeats_count=1)
+                self.__log(f"{datetime.now()} - Certificate information is shown below this line", 'underline')
+                self.__rPrintOutput(message = '')
 
-                transaction = self.__w3.eth.get_transaction(self.__dohash)
-                block = self.__w3.eth.get_block(transaction['blockNumber'])
-                blocktimestamp = (block['timestamp'])
-                blockdatetime = datetime.fromtimestamp(blocktimestamp)
-                endblocknumber = self.__w3.eth.block_number
-                startblocknumber = endblocknumber - 20
+                blocktimestamp, blockdatetime, endblocknumber, startblocknumber = self.__get_block_details()
 
                 resulttransactionhash = None
                 resultblocktimestamp = None
@@ -375,50 +306,123 @@ class EtnyPoXClient:
                                     resultblocktimestamp = (block['timestamp'])
                                     resultblockdatetime = datetime.fromtimestamp(resultblocktimestamp)
 
-                self.__write_to_cert(self.__dohash, ('#' * 109))
-                self.__write_to_cert(self.__dohash, f"{'#' * 41} bloxberg PoX certificate {'#' * 42}")
-                self.__write_to_cert(self.__dohash, ('#' * 109))
-                self.__write_to_cert(self.__dohash, f"{'#' * 6}{' ' * 97}{'#' * 6}")
-                self.__write_to_cert(self.__dohash, f"{'#' * 6}  [INFO] contract address: {self._contract_address} {' ' * 27}{'#' * 6}")
-                self.__write_to_cert(self.__dohash, f"{'#' * 6}  [INFO] input transaction: {self.__dohash}   {'#' * 6}")
-                self.__write_to_cert(self.__dohash, f"{'#' * 6}  [INFO] output transaction: {resulttransactionhash.hex()}  {'#' * 6}")
-                self.__write_to_cert(self.__dohash, f"{'#' * 6}  [INFO] PoX processing order: {str(order).zfill(16)}{' ' * 50}{'#' * 6}")
-                self.__write_to_cert(self.__dohash, f"{'#' * 6}{' ' * 97}{'#' * 6}")
-                self.__write_to_cert(self.__dohash, f"{'#' * 6}  [INPUT] public image: {self._image}{' ' * 14}{'#' * 6}")
-                self.__write_to_cert(self.__dohash, f"{'#' * 6}  [INPUT] public script: {self._scripthash}{' ' * 26}{'#' * 6}")
-                self.__write_to_cert(self.__dohash, f"{'#' * 6}  [INPUT] public fileset: {self._filesethash}{' ' * 25}{'#' * 6}")
-                self.__write_to_cert(self.__dohash, f"{'#' * 6}  [INPUT] timestamp: {str(blockdatetime)} [{str(blocktimestamp)}]{' ' * 44}{'#' * 6}")
-                self.__write_to_cert(self.__dohash, f"{'#' * 6}  [OUTPUT] public result: {result} {' ' * 24}{'#' * 6}")
-                self.__write_to_cert(self.__dohash, f"{'#' * 6}  [OUTPUT] timestamp: {str(resultblockdatetime)} [{str(resultblocktimestamp)}] {' ' * 42}{'#' * 6}")
-                self.__write_to_cert(self.__dohash, f"{'#' * 6}{' ' * 97}{'#' * 6}")
-                self.__write_to_cert(self.__dohash, ('#' * 109))
-                self.__write_to_cert(self.__dohash, ('#' * 109))
-                self.__write_to_cert(self.__dohash, ('#' * 109))
+                cert_result = ""
+                try:
+                    cert_result += self.__pre_suf(multiply=109, new_line=True)
+                    cert_result += f"{self.__pre_suf(multiply=41)} bloxberg PoX certificate {self.__pre_suf(multiply=42, new_line=True)}"
+                    cert_result += self.__pre_suf(multiply=109, new_line=True)
+                    cert_result += f"{self.__pre_suf()}{self.__pre_suf(char=' ', multiply=97)}{self.__pre_suf(new_line=True)}"
+                    cert_result += f"{self.__pre_suf()}  [INFO] contract address: {self._contract_address} {self.__pre_suf(char=' ', multiply=27)}{self.__pre_suf(new_line=True)}"
+                    cert_result += f"{self.__pre_suf()}  [INFO] input transaction: {self.__dohash}   {self.__pre_suf(new_line=True)}"
+                    cert_result += f"{self.__pre_suf()}  [INFO] output transaction: {resulttransactionhash.hex()}  {self.__pre_suf(new_line=True)}"
+                    cert_result += f"{self.__pre_suf()}  [INFO] PoX processing order: {str(order).zfill(16)}{self.__pre_suf(char=' ', multiply=50)}{self.__pre_suf(new_line=True)}"
+                    cert_result += f"{self.__pre_suf()}  {self.__pre_suf(char=' ', multiply=94)} {self.__pre_suf(new_line=True)}"
+                    cert_result += f"{self.__pre_suf()}  [INPUT] public image: {self._image}{self.__pre_suf(char=' ', multiply=14)}{self.__pre_suf(new_line=True)}"
+                    cert_result += f"{self.__pre_suf()}  [INPUT] public script: {self._scripthash}{self.__pre_suf(char=' ', multiply=26)}{self.__pre_suf(new_line=True)}"
+                    cert_result += f"{self.__pre_suf()}  [INPUT] public fileset: {self._filesethash}{self.__pre_suf(char=' ', multiply=25)}{self.__pre_suf(new_line=True)}"
+                    cert_result += f"{self.__pre_suf()}  [INPUT] timestamp: {str(blockdatetime)} [{str(blocktimestamp)}]{self.__pre_suf(char=' ', multiply=44)}{self.__pre_suf(new_line=True)}"
+                    cert_result += f"{self.__pre_suf()}  [OUTPUT] public result: {result} {self.__pre_suf(char=' ', multiply=24)}{self.__pre_suf(new_line=True)}"
+                    cert_result += f"{self.__pre_suf()}  [OUTPUT] timestamp: {str(resultblockdatetime)} [{str(resultblocktimestamp)}] {self.__pre_suf(char=' ', multiply=42)}{self.__pre_suf(new_line=True)}"
+                    cert_result += f"{self.__pre_suf()}{self.__pre_suf(char=' ', multiply=97)}{self.__pre_suf(new_line=True)}"
+                    cert_result += self.__pre_suf(multiply=109, new_line=True)
+                    cert_result += self.__pre_suf(multiply=109, new_line=True)
+                    cert_result += self.__pre_suf(multiply=109, new_line=True)
+                finally:
+                    self.__write_to_cert(self.__dohash, cert_result)
 
-                self.rPrintOutput(message = '')
+                self.__rPrintOutput(message = '')
 
-                self._log(str(datetime.now())+ " - Actual result of the processing is printed below this line", 'underline')
-                self.rPrintOutput(message = '')
-                print(content)
+                self.__log(f"{datetime.now()} - Actual result of the processing is printed below this line", 'underline')
+                self.__rPrintOutput(message = '')
 
-                print('')
+                # result
+                self.__log(content, 'bold')
+                # result
 
-                sys.exit()
+                return True
 
-    def __write_to_cert(self, dohash, text):
+    def __get_ipfs_output_file_path(self, file) -> str:
+        if not os.path.isdir(os.path.join('.tmp')):
+            os.mkdir(os.path.join('.tmp'))
+        return os.path.join('.tmp', file)
+
+    def __restart_ipfs(self) -> None:
+        if self.__local:
+            for proc in psutil.process_iter():
+                if proc.name() == "ipfs.exe":
+                    proc.kill()
+                if proc.name() == "ipfs":
+                    proc.kill()
+            cmd = 'start /B "" "%s" daemon > %s' % (self.__get_ipfs_executable_path, self.__get_ipfs_output_file_path('ipfsoutput.txt'))
+            print(cmd)
+            os.system(cmd)
+        return None
+
+    def __log(self, message = '', mode = '_end') -> None:
+        mode = str(mode.upper() if type(mode) == str else bcolors[mode].name)
+        prefix = f"{bcolors[mode].value}{bcolors.BOLD.value}{bcolors[mode].name}{bcolors._END.value}: " if mode not in ['_END', 'BOLD', 'UNDERLINE'] else ""
+        print(f"{prefix}{bcolors[mode].value}{str(message)}{bcolors._END.value}")
+
+    def __upload_ipfs(self, file, recursive=False) -> str:
+        while True:
+            try:
+                if self.__local and self.__ipfsnode is not None:  # hasattr(self, 'ipfsnode'):
+                    self.__ipfs_swarm_connect()
+            except Exception as e:
+                self.__sys_stdout(char='*')
+                continue
+            res = self.__add_to_ipfs(file, recursive)
+            if isinstance(res, list):
+                for item in res:
+                    if item['Name'] == ntpath.basename(file):
+                        return item['Hash']
+            else:
+                return res['Hash']
+    
+    def __add_to_ipfs(self, file, recursive=False) -> Union[ResponseBase, list, None]:
+        while True:
+            try:
+                return self.__client.add(file, recursive=recursive)
+            except Exception:
+                time.sleep(1)
+                continue
+            except StatusError:
+                self.__log("You have reached request limit, please wait or try again later", 'error')
+                time.sleep(60)
+                continue
+
+    def __rPrintOutput(self, message, repeats_count = 2) -> str:
+        [print(message) for x in range(repeats_count)]
+
+    def __sys_stdout(self, char = '.') -> None:
+        sys.stdout.write(char)
+        sys.stdout.flush()
+
+    def __pre_suf(self, char = "#", multiply = 6, new_line = False) -> str:
+        result = (char * multiply) 
+        return f"{result}\n" if new_line else result
+
+    def __get_block_details(self) -> list:
+        transaction = self.__w3.eth.get_transaction(self.__dohash)
+        block = self.__w3.eth.get_block(transaction['blockNumber'])
+        blocktimestamp = (block['timestamp'])
+        blockdatetime = datetime.fromtimestamp(blocktimestamp)
+        endblocknumber = self.__w3.eth.block_number
+        startblocknumber = endblocknumber - 20
+
+        return [blocktimestamp, blockdatetime, endblocknumber, startblocknumber]
+
+    def __write_to_cert(self, dohash, text) -> None:
         with open('certs/' + dohash, 'a+') as r:
             r.write(text + '\n')
         print(text)
                 
-
-    def __check_ipfs_upload(self, file, recursive=False):
+    def __check_ipfs_upload(self, file, recursive=False) -> None:
         print('-----check ipfs upload')
         if self.__local:
             while True:
                 res = self.__add_to_ipfs(file, recursive)
-
-                sys.stdout.write('.')
-                sys.stdout.flush()
+                self.__sys_stdout()
 
                 if isinstance(res, list):
                     for item in res:
@@ -426,36 +430,37 @@ class EtnyPoXClient:
                 else:
                     return self.__process_ipfs_result(res)
 
-                sys.stdout.write('*')
-                sys.stdout.flush()
-                self.__restart_ipfs()
+                self.__sys_stdout(char='*')
 
+                self.__restart_ipfs()
         return None
 
-    def __process_ipfs_result(self, resultitem):
+    def __process_ipfs_result(self, resultitem) -> None:
         retries = 0
         while retries < 3:
             try:
-                cmd = "%s swarm connect /ip4/%s/tcp/4001/ipfs/%s > %s" % (
-                    self.__get_ipfs_executable_path(), 
-                    self.__ipfsnode,
-                    self._ipfshash,
-                    self.__get_ipfs_output_file_path('ipfsconnect.txt'))
-                print(cmd)
-                os.system(cmd)
+                self.__ipfs_swarm_connect()
                 time.sleep(1)
                 for dht in self.__client.dht.findprovs(resultitem['Hash'], timeout=10):
                     if dht['Responses'] is not None:
                         for response in dht['Responses']:
                             if response['ID'] == self._ipfshash:
-                                sys.stdout.write('#')
-                                sys.stdout.flush()
+                                self.__sys_stdout(char='#')
                                 return resultitem['Hash']
             except Exception:
                 pass
-            sys.stdout.write('.')
-            sys.stdout.flush()
+            self.__sys_stdout()
             retries += 1
+
+    def __ipfs_swarm_connect(self, log = False) -> None:
+        cmd = "%s swarm connect /ip4/%s/tcp/4001/ipfs/%s > %s" % (
+                    self.__get_ipfs_executable_path, 
+                    self.__ipfsnode,
+                    self._ipfshash,
+                    self.__get_ipfs_output_file_path('ipfsconnect.txt'))
+        if log: print(cmd)
+        os.system(cmd)
+
 
 if __name__ == '__main__':
     print('-----------')
