@@ -44,7 +44,7 @@ class EtnyPoXClient:
     _bandwidth = None
     _contract_address = None
     _redistribute = None
-    _executable_node = ""
+    _node = ""
 
     def __init__(self):
 
@@ -53,7 +53,6 @@ class EtnyPoXClient:
 
         # get arguments from command line or from config (.env, .env.config) files
         self.parse_args(parser = parser, arguments=arguments)
-
     
         # base configs
         self._baseConfigs()
@@ -196,7 +195,7 @@ class EtnyPoXClient:
             self._image, 
             self._scripthash, 
             self._filesethash, 
-            self._executable_node
+            self._node
         ]
         print(_params)
         unicorn_txn = self.__etny.functions._addDORequest(*_params).buildTransaction({

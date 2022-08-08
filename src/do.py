@@ -79,8 +79,7 @@ class EtnyPoXClient:
         parser.add_argument("-b", "--bandwidth", help="Amount of bandwidth (GB)", required=False, default="1")
         parser.add_argument("-t", "--duration", help="Amount of time allocated for task (minutes)", required=False,
                             default="60")
-        parser.add_argument("-n", "--instances", help="Number of instances to run simmultaneously (count)",
-                            required=False, default="1")
+        parser.add_argument("-e", "--instances", help="Number of instances to run simmultaneously (count)", default="1")
         parser.add_argument("-i", "--image", help="IPFS location of docker repository in format [HASH:container]",
                             required=False, default="QmeQiSC1dLMKv4BvpvjWt1Zeak9zj6TWgWhN7LLiRznJqC:etny-pynithy")
         parser.add_argument("-s", "--script", help="PATH of python script", required=True, default="")
@@ -90,7 +89,7 @@ class EtnyPoXClient:
         parser.add_argument("-g", "--ipfsgateway", help="IPFS Gateway host url", required=False, default="")
         parser.add_argument("-u", "--ipfsuser", help="IPFS Gateway username", required=False, default="")
         parser.add_argument("-p", "--ipfspassword", help="IPFS Gateway password", required=False, default="")
-        parser.add_argument("-x", "--executable_node", help="executable node address", default="")
+        parser.add_argument("-n", "--node", help="Node Address", default="")
         return parser.parse_args()
 
     def __parse_arguments(self, arguments):
@@ -128,7 +127,7 @@ class EtnyPoXClient:
         if arguments.ipfspassword:
             self.__ipfspassword = format(arguments.ipfspassword)
 
-        self.executable_node = arguments.executable_node if arguments.executable_node else ""
+        self.node = arguments.node if arguments.node else ""
         self.__ipfsgateway = self.__get_ipfs_address(
             arguments.ipfsgateway if arguments.ipfsgateway != "" else 'http://127.0.0.1:5001')
 
@@ -275,7 +274,7 @@ class EtnyPoXClient:
         unicorn_txn = self.__etny.functions._addDORequest(
             self.__cpu, self.__memory, self.__storage, self.__bandwidth,
             self.__duration, self.__instances, 0,
-            self.__imageHash, self.__scripthash, self.__filesethash, self.executable_node
+            self.__imageHash, self.__scripthash, self.__filesethash, self.node
         ).buildTransaction({
             'gas': 1000000,
             'chainId': 8995,
