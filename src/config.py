@@ -1,9 +1,12 @@
 import os
 from enum import Enum
-from dotenv import load_dotenv
 import argparse
 
-load_dotenv('.env' if os.path.exists('.env') else '.env.config') 
+try:
+    from dotenv import load_dotenv
+    load_dotenv('.env' if os.path.exists('.env') else '.env.config') 
+except ImportError:
+    pass
 
 
 class bcolors(Enum):
