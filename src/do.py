@@ -154,6 +154,13 @@ class EtnyPoXClient:
         transactionhash = self.__w3.toHex(self.__w3.sha3(signed_txn.rawTransaction))
        
         self.__log(str(datetime.now())+" - Submitting transaction for DO request", 'message')
+
+        self.__rPrintOutput(message = ('-' * 10), repeats_count=1)
+        self.__log(f"Public IPFS Image: {self._image.split(':')[0]}")
+        self.__log(f"Public Script: {self._scripthash}")
+        self.__log(f"Public Fileset: {self._filesethash}")
+        self.__rPrintOutput(message = ('-' * 10), repeats_count=1)
+
         receipt = None
         for i in range(100):
             try:
@@ -175,7 +182,7 @@ class EtnyPoXClient:
             self.__log(f"{datetime.now()} - Unable to create request, please check conectivity with bloxberg node", 'error')
 
     def _wait_for_processor(self) -> None:
-        self.__log(str(datetime.now())+ f" - Waiting for Ethernity network... {str(self.__dorequest)}", "message")
+        self.__log(str(datetime.now())+ f" - Waiting for Ethernity network...", "message")
         while True:
             try:
                 order = self.__find_order(self.__dorequest)
@@ -240,7 +247,6 @@ class EtnyPoXClient:
     def __get_result_from_order(self, order) -> bool:
         try:
             self.__log(f"{datetime.now()} - Waiting for task to finish...", "message")
-            self.__log('order_id = '+str(order), "message")
         except Exception as e:
             print('----|----', str(e))
 
@@ -460,5 +466,5 @@ class EtnyPoXClient:
 
 
 if __name__ == '__main__':
-    print('-----------')
+    print('-' * 20)
     app = EtnyPoXClient()
