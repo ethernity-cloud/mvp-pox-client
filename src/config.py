@@ -30,14 +30,16 @@ parser.add_argument("-k", "--private_key", help="Etherem privatekey (c87509a1c06
 parser.add_argument("-l", "--contract_address", help="constractaddress", default="0x549A6E06BB2084100148D50F51CF77a3436C3Ae7")
 parser.add_argument("-m", "--memory", help="Amount of memory (GB)", default="1")
 parser.add_argument("-n", "--node", help="Node Address", default="")
+parser.add_argument("-o", "--ipfs_cloud", help="Ipfs cloud address", default='ipfs.ethernity.cloud')
 parser.add_argument("-p", "--ipfspassword", help="IPFS Gateway password", default="")
 parser.add_argument("-r", "--redistribute", help="Check and redistribute IPFS payload after order validation", action='store_true')
 parser.add_argument("-s", "--script", help="PATH of python script", required=True, default="")
 parser.add_argument("-t", "--duration", help="Amount of time allocated for task (minutes)", default="60")
 parser.add_argument("-u", "--ipfsuser", help="IPFS Gateway username", default="")
+parser.add_argument("-w", "--web3_provider", help="Web3 Http Provider", default="https://bloxberg.ethernity.cloud")
 
 
 arguments = {
-    str: ['address', 'private_key', 'image', 'script', 'fileset', 'redistribute', 'ipfsgateway', 'ipfshash', 'ipfsuser', 'ipfspassword', 'contract_address', 'node'],
+    str: ['address', 'private_key', 'image', 'script', 'fileset', 'redistribute', 'ipfsgateway', 'ipfshash', 'ipfsuser', 'ipfspassword', 'contract_address', 'node', 'web3_provider', 'ipfs_cloud'],
     int: ['cpu', 'memory', 'storage', 'storage', 'bandwidth', 'duration', 'instances']
 }
