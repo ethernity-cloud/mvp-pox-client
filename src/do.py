@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 from email import message
+from operator import mod
 import time
 import ipfshttpclient
 from ipfshttpclient.exceptions import StatusError
@@ -51,24 +52,28 @@ class EtnyPoXClient:
     _node = ""
 
     def __init__(self):
+        try:
+            # read abi
+            self._readABI()
 
-        # read abi
-        self._readABI()
+            # get arguments from command line or from config (.env, .env.config) files
+            self._parse_args(parser = parser, arguments=arguments)
+        
+            # base configs
+            self._baseConfigs()
 
-        # get arguments from command line or from config (.env, .env.config) files
-        self._parse_args(parser = parser, arguments=arguments)
-    
-        # base configs
-        self._baseConfigs()
+            # connect to ipfs
+            self._connect_ipfs_gateway()
 
-        # connect to ipfs
-        self._connect_ipfs_gateway()
+            # do request
+            self._add_do_request()
 
-        # do request
-        self._add_do_request()
-
-        # main loop
-        self._wait_for_processor()
+            # main loop
+            self._wait_for_processor()
+        except KeyboardInterrupt:
+            self.__log(message='....bye!', mode='error', hide_prefix=True)
+        except Exception as e:
+            self.__log(message = str(e), mode='error')
 
     @property
     def __get_ipfs_address(self) -> str:
@@ -360,9 +365,9 @@ class EtnyPoXClient:
             os.system(cmd)
         return None
 
-    def __log(self, message = '', mode = '_end') -> None:
+    def __log(self, message = '', mode = '_end', hide_prefix = False) -> None:
         mode = str(mode.upper() if type(mode) == str else bcolors[mode].name)
-        prefix = f"{bcolors[mode].value}{bcolors.BOLD.value}{bcolors[mode].name}{bcolors._END.value}: " if mode not in ['_END', 'BOLD', 'UNDERLINE'] else ""
+        prefix = f"{bcolors[mode].value}{bcolors.BOLD.value}{bcolors[mode].name}{bcolors._END.value}: " if mode not in ['_END', 'BOLD', 'UNDERLINE'] and not hide_prefix else ""
         print(f"{prefix}{bcolors[mode].value}{str(message)}{bcolors._END.value}")
         if mode == 'ERROR': sys.exit()
 
