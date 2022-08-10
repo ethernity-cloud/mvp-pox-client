@@ -28,7 +28,7 @@ fi
 
 echo -en "Installing Python3 dependencies... "
 $PIP install --upgrade pip --no-warn-script-location 2>&1 > /dev/null
-$PIP install ipfshttpclient==0.8.0a2 web3 psutil --upgrade --no-warn-script-location 2>&1 > /dev/null
+$PIP install ipfshttpclient==0.8.0a2 web3 psutil python-dotenv --upgrade --no-warn-script-location 2>&1 > /dev/null
 echo "done"
 
 [ -d certs ] || mkdir certs
