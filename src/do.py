@@ -272,13 +272,20 @@ class EtnyPoXClient:
 
                 self.__log(f"{datetime.now()} - Fetching result from IPFS...", 'message')
 
+                try_count = 0
                 while True:
                     try:
+                        print(f'..getting from: {result}')
                         self.__client.get(result)
-                    except Exception:
+                    except Exception as e:
                         print(e, type(e), '-2')
                         self.__sys_stdout()
                         time.sleep(1)
+                        
+                        if try_count > 5:
+                            return self.__log('can`t download ipfs Image', 'error')
+                        try_count += 1
+
                         continue
                     else:
                         break
