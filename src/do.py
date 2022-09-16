@@ -66,7 +66,10 @@ class EtnyPoXClient:
             self._connect_ipfs_gateway()
 
             # do request
-            self._add_do_request()
+            try:
+                self._add_do_request()
+            except ValueError as e:
+                raise Exception(e)
 
             # main loop
             self._wait_for_processor()
@@ -138,6 +141,9 @@ class EtnyPoXClient:
 
         self._scripthash = self.__upload_ipfs(self._script)
         self._filesethash = self.__upload_ipfs(self._fileset, True)
+
+        if ':' not in self._image:
+            self._image += ':etny-pynithy'
 
         _params = [
             self._cpu, 
