@@ -165,6 +165,7 @@ class EtnyPoXClient:
         transactionhash = self.__w3.toHex(self.__w3.sha3(signed_txn.rawTransaction))
        
         self.__log(str(datetime.now())+" - Submitting transaction for DO request", 'message')
+        self.__log(f"{datetime.now()} - TX Hash: {transactionhash}", 'message')
 
         self.__rPrintOutput(message = ('-' * 10), repeats_count=1)
         self.__log(f"Public IPFS Image: {self._image.split(':')[0]}")
