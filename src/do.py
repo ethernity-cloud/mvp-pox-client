@@ -66,7 +66,10 @@ class EtnyPoXClient:
             self._connect_ipfs_gateway()
 
             # do request
-            self._add_do_request()
+            try:
+                self._add_do_request()
+            except ValueError as e:
+                raise Exception(e)
 
             # main loop
             self._wait_for_processor()
@@ -139,6 +142,9 @@ class EtnyPoXClient:
         self._scripthash = self.__upload_ipfs(self._script)
         self._filesethash = self.__upload_ipfs(self._fileset, True)
 
+        if ':' not in self._image:
+            self._image += ':etny-pynithy'
+
         _params = [
             self._cpu, 
             self._memory, 
@@ -159,6 +165,7 @@ class EtnyPoXClient:
         transactionhash = self.__w3.toHex(self.__w3.sha3(signed_txn.rawTransaction))
        
         self.__log(str(datetime.now())+" - Submitting transaction for DO request", 'message')
+        self.__log(f"{datetime.now()} - TX Hash: {transactionhash}", 'message')
 
         self.__rPrintOutput(message = ('-' * 10), repeats_count=1)
         self.__log(f"Public IPFS Image: {self._image.split(':')[0]}")
@@ -272,13 +279,20 @@ class EtnyPoXClient:
 
                 self.__log(f"{datetime.now()} - Fetching result from IPFS...", 'message')
 
+                try_count = 0
                 while True:
                     try:
+                        print(f'..getting from: {result}')
                         self.__client.get(result)
-                    except Exception:
+                    except Exception as e:
                         print(e, type(e), '-2')
                         self.__sys_stdout()
                         time.sleep(1)
+                        
+                        if try_count > 5:
+                            return self.__log('can`t download ipfs Image', 'error')
+                        try_count += 1
+
                         continue
                     else:
                         break
