@@ -40,7 +40,7 @@ parser.add_argument("-r", "--redistribute", help="Check and redistribute IPFS pa
 parser.add_argument("-s", "--script", help="PATH of python script", required=True, default="")
 parser.add_argument("-t", "--duration", help="Amount of time allocated for task (minutes)", default="60")
 parser.add_argument("-u", "--ipfsuser", help="IPFS Gateway username", default="")
-parser.add_argument("-w", "--web3_provider", help="Web3 Http Provider", default="https://core.bloxberg.org")
+parser.add_argument("-w", "--web3_provider", help="Web3 Http Provider", default="https://bloxberg.ethernity.cloud")
 
 
 arguments = {
