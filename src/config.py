@@ -28,7 +28,7 @@ parser.add_argument("-d", "--storage", help="Amount of storage (GB)", default="4
 parser.add_argument("-e", "--instances", help="Number of instances to run simmultaneously (count)", default="1")
 parser.add_argument("-f", "--fileset", help="PATH of the fileset", required=True, default="")
 parser.add_argument("-j", "--ipfsgateway", help="IPFS Gateway host url", default="")
-parser.add_argument("-i", "--image", help="IPFS location of docker repository in format [HASH:container]", default="QmSwHhD3puVphVUqFUVGqZA8eMYNBehr4HDtXLvdNbPP4g:etny-pynithy")
+parser.add_argument("-i", "--image", help="IPFS location of docker repository in format [HASH:container]", default="QmexKQm3wqeV63kR1G83ktCzodMAsdYRi4vV4RGhn1e1NT:etny-pynithy")
 parser.add_argument("-g", "--ipfshash", help="IPFS Gateway host url", default="QmRBc1eBt4hpJQUqHqn6eA8ixQPD3LFcUDsn6coKBQtia5")
 parser.add_argument("-k", "--private_key", help="Etherem privatekey (c87509a1c067bbde78beb793e6fa76530b6382a4c0241e5e4a9ec0a0f44dc0d3)", default="08075e59c931bcc4fc7a57e79a566a47345fff4048f6970168696d76796a4df3")
 parser.add_argument("-l", "--contract_address", help="constractaddress", default="0x549A6E06BB2084100148D50F51CF77a3436C3Ae7")
