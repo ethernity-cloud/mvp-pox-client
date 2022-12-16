@@ -22,8 +22,26 @@ from web3.middleware import geth_poa_middleware
 from web3.exceptions import TimeExhausted, ContractLogicError
 from config import os, parser, arguments, bcolors
 from typing import Union
-from multiprocessing import Pool
+from multiprocessing import Pool, Lock
+from functools import partial
 
+
+class CustomLock:
+    def __new__(cls, lock) -> None:
+        cls.lock = lock
+
+    @classmethod
+    def acquire(cls):
+        try:
+            cls.lock.acquire()
+        except:pass
+
+    @classmethod
+    def release(cls):
+        try:
+            cls.lock.release()
+        except:pass
+        
 class EtnyPoXClient:
     # class variables
 
@@ -54,6 +72,7 @@ class EtnyPoXClient:
     _node = ""
 
     _nodes = None
+    
 
     def __init__(self):
         try:
@@ -69,9 +88,12 @@ class EtnyPoXClient:
             # do request
             try:
                 nodes = self._node_addreses
+                self.isProcessing = nodes and len(nodes)
                 if nodes:
-                    with Pool(len(nodes)) as p:
+                    lock = Lock()
+                    with Pool(len(nodes), initializer=CustomLock, initargs=(lock,)) as p:
                         p.map(self._add_do_request, nodes)
+                        #p.starmap(partial(self._add_do_request, nodes) ), zip(nodes, range(len(nodes))))
                 else:
                     self._add_do_request(self._node)
             except ValueError as e:
@@ -127,6 +149,10 @@ class EtnyPoXClient:
 
         return None
 
+    @property
+    def _getDoRequestCount(self):
+        return self.__etny.caller()._getDORequestsCount()
+
     def _readABI(self) -> None:
         try:
             with open(os.path.dirname(os.path.realpath(__file__)) + '/pox.abi') as f:
@@ -166,9 +192,8 @@ class EtnyPoXClient:
                 self.__restart_ipfs()
                 
     def _add_do_request(self, node = '') -> None:
-        # base configs
+        CustomLock.acquire()
         self._baseConfigs()
-
         self.__log(f"{datetime.now()} - Sending payload to IPFS...", 'message')
 
         self._scripthash = self.__upload_ipfs(self._script)
@@ -190,13 +215,17 @@ class EtnyPoXClient:
             self._filesethash, 
             node
         ]
-        print('params = ')
-        print(_params)
-        print('---------')
        
+        _count = self._getDoRequestCount
         unicorn_txn = self.__etny.functions._addDORequest(*_params).buildTransaction(self.__transaction_object)
         signed_txn = self.__w3.eth.account.sign_transaction(unicorn_txn, private_key=self.__acct.key)
         self.__w3.eth.sendRawTransaction(signed_txn.rawTransaction)
+        if self.isProcessing:
+            while _count == self._getDoRequestCount:
+                print(f'waiting for addDoRequest: current_count = {_count}, doRequestCount = {self._getDoRequestCount}')
+                time.sleep(.1)
+            CustomLock.release()
+
         transactionhash = self.__w3.toHex(self.__w3.sha3(signed_txn.rawTransaction))
        
         self.__log(str(datetime.now())+" - Submitting transaction for DO request", 'message')
@@ -317,7 +346,6 @@ class EtnyPoXClient:
             else:
                 self.__rPrintOutput(message = '', repeats_count=1)
                 self.__log(f"{datetime.now()} - Found result hash: {result}", 'info')
-
                 self.__log(f"{datetime.now()} - Fetching result from IPFS...", 'message')
 
                 try_count = 0

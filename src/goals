@@ -1,0 +1,27 @@
+1. Client side change:
+- ability for the client to run the same task (parallel) on multiple nodes in the same time
+   definition: use -n with multiple wallet addresses separated by comma (maximum 10 addresses)
+   definition: for more than 10 address pick it up from file (delimited by row)
+   definition: -n address or file
+   definition: check wallet address validity
+- show all the results for all tasks
+- total execution time for each node
+- define failed execution: 10 minutes
+
+
+
+2. Client side change + node side change(?)
+- Current flow
+client transaction to request execution
+node transaction to execute
+client transaction to approve execution
+node executes
+node publishes the result
+client shows result on screen
+
+- Expected flow:
+client transaction to request execution
+node transaction to execute
+node executes
+node transaction to publish result
+client shows result

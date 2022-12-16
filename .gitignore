@@ -4,4 +4,5 @@ certs/*
 .tmp
 .venv
 .env
-__pychare__/
+*.pyc
+__pychare__/*

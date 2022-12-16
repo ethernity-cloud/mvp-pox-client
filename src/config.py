@@ -8,8 +8,6 @@ try:
 except ImportError as e:
     pass
 
-print(os.environ.get('ADDRESS'))
-
 class bcolors(Enum):
     MESSAGE = '\033[94m'
     INFO = '\033[92m'
