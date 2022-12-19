@@ -24,7 +24,7 @@ from config import os, parser, arguments, bcolors
 from typing import Union
 from multiprocessing import Pool, Lock
 from functools import partial
-
+from models import OrderStatus
 
 class CustomLock:
     def __new__(cls, lock) -> None:
@@ -215,14 +215,17 @@ class EtnyPoXClient:
             self._filesethash, 
             node
         ]
+
+        node_address = None
        
         _count = self._getDoRequestCount
         unicorn_txn = self.__etny.functions._addDORequest(*_params).buildTransaction(self.__transaction_object)
         signed_txn = self.__w3.eth.account.sign_transaction(unicorn_txn, private_key=self.__acct.key)
         self.__w3.eth.sendRawTransaction(signed_txn.rawTransaction)
-        if self.isProcessing:
+        if self.isProcessing and self.isProcessing != None:
+            node_address = node
             while _count == self._getDoRequestCount:
-                print(f'waiting for addDoRequest: current_count = {_count}, doRequestCount = {self._getDoRequestCount}')
+                # print(f'waiting for addDoRequest: current_count = {_count}, doRequestCount = {self._getDoRequestCount}')
                 time.sleep(.1)
             CustomLock.release()
 
@@ -260,10 +263,11 @@ class EtnyPoXClient:
 
         # main loop
         self._wait_for_processor(
-            do_request=do_request
+            do_request=do_request,
+            node_address = node_address
         )
 
-    def _wait_for_processor(self, do_request) -> None:
+    def _wait_for_processor(self, do_request, node_address) -> None:
         self.__log(str(datetime.now())+ f" - Waiting for Ethernity network...", "message")
         order = None
         while True:
@@ -273,9 +277,10 @@ class EtnyPoXClient:
                 print('--------', str(e))
             if order is not None:
                 print("")
-                self.__log(f"{datetime.now()} - Connected!", "info")
-                if self.__approve_order(order):
-                    break
+                self.__log(f"{datetime.now()} - Connected! skipping approval", "info")
+
+                # if self.__approve_order(order):
+                #     break
 
                 if self._redistribute is True and self.__local:
                     self.__log(f"{datetime.now()} - Checking IPFS payload distribution...", "message")
@@ -283,7 +288,7 @@ class EtnyPoXClient:
                     filesethash = self.__check_ipfs_upload(self.__fileset, True)
                     if scripthash is not None and filesethash is not None:
                         self.__log(f"{datetime.now()} - IPFS payload distribution confirmed!", "info")
-                if self.__get_result_from_order(order):
+                if self.__get_result_from_order(order, node_address):
                     break
             else:
                 time.sleep(5)   
@@ -291,12 +296,14 @@ class EtnyPoXClient:
     def __find_order(self, doreq) -> Union[int, None]:
         self.__sys_stdout()
         count = self.__etny.functions._getOrdersCount().call()
-        for i in range(count - 1, count - 5, -1):
+        for i in range(count - 1, count - 10, -1):
             order = self.__etny.caller()._getOrder(i)
-            if order[2] == doreq and order[4] == 0:
+            # if order[2] == doreq and order[4] == 0:
+            if order[2] == doreq and order[4] == OrderStatus.PROCESSING:
                 return i
         return None
 
+    # depricated
     def __approve_order(self, order) -> bool:
         unicorn_txn = self.__etny.functions._approveOrder(order).buildTransaction(self.__transaction_object)
 
@@ -326,7 +333,7 @@ class EtnyPoXClient:
             return True
         return False
 
-    def __get_result_from_order(self, order) -> bool:
+    def __get_result_from_order(self, order, node_address) -> bool:
         try:
             self.__log(f"{datetime.now()} - Waiting for task to finish...", "message")
         except Exception as e:
@@ -351,7 +358,6 @@ class EtnyPoXClient:
                 try_count = 0
                 while True:
                     try:
-                        print(f'..getting from: {result}')
                         self.__client.get(result)
                     except Exception as e:
                         print(e, type(e), '-2')
@@ -406,6 +412,8 @@ class EtnyPoXClient:
                     cert_result += f"{self.__pre_suf()}  [INFO] input transaction: {self.__dohash}   {self.__pre_suf(new_line=True)}"
                     cert_result += f"{self.__pre_suf()}  [INFO] output transaction: {resulttransactionhash.hex()}  {self.__pre_suf(new_line=True)}"
                     cert_result += f"{self.__pre_suf()}  [INFO] PoX processing order: {str(order).zfill(16)}{self.__pre_suf(char=' ', multiply=50)}{self.__pre_suf(new_line=True)}"
+                    if node_address:
+                        cert_result += f"{self.__pre_suf()}  [INFO] Node Address: {str(node_address)}{self.__pre_suf(char=' ', multiply=32)}{self.__pre_suf(new_line=True)}"
                     cert_result += f"{self.__pre_suf()}  {self.__pre_suf(char=' ', multiply=94)} {self.__pre_suf(new_line=True)}"
                     cert_result += f"{self.__pre_suf()}  [INPUT] public image: {self._image}{self.__pre_suf(char=' ', multiply=14)}{self.__pre_suf(new_line=True)}"
                     cert_result += f"{self.__pre_suf()}  [INPUT] public script: {self._scripthash}{self.__pre_suf(char=' ', multiply=26)}{self.__pre_suf(new_line=True)}"
@@ -421,7 +429,8 @@ class EtnyPoXClient:
                     self.__write_to_cert(self.__dohash, cert_result)
 
                 self.__rPrintOutput(message = '')
-
+                if node_address:
+                    self.__log(f"{datetime.now()} - Node Address: {node_address}", 'bold')
                 self.__log(f"{datetime.now()} - Actual result of the processing is printed below this line", 'underline')
                 self.__rPrintOutput(message = '')
 
@@ -429,6 +438,9 @@ class EtnyPoXClient:
                 self.__log(content, 'bold')
                 # result
 
+                if node_address:
+                    self.__rPrintOutput(message=('-' * 10), repeats_count=1)
+                    
                 return True
 
     def __get_ipfs_output_file_path(self, file) -> str:
@@ -509,7 +521,6 @@ class EtnyPoXClient:
         print(text)
                 
     def __check_ipfs_upload(self, file, recursive=False) -> None:
-        print('-----check ipfs upload')
         if self.__local:
             while True:
                 res = self.__add_to_ipfs(file, recursive)
