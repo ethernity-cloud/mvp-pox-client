@@ -586,9 +586,7 @@ class EtnyPoXClient:
             h = [str(seconds//3600), 'hours']
             m = [str((seconds%3600)//60), 'minutes']
             s = [str((seconds%3600)%60), 'seconds']
-            result = []
-            result = [" ".join(i) for i in [h, m, s] if int(i[0])]
-            return ", ".join(result)
+            return ", ".join([" ".join(i) for i in [h, m, s] if int(i[0])])
         except: 
             return 0
         
