@@ -90,10 +90,13 @@ class EtnyPoXClient:
                 nodes = self._node_addreses
                 self.isProcessing = nodes and len(nodes)
                 if nodes:
+                    started_at = time.time()
                     lock = Lock()
                     with Pool(len(nodes), initializer=CustomLock, initargs=(lock,)) as p:
                         p.map(self._add_do_request, nodes)
                         #p.starmap(partial(self._add_do_request, nodes) ), zip(nodes, range(len(nodes))))
+                    print('----------')
+                    print(f'Total time spent: {self.__display_date(int(time.time() - started_at))}')
                 else:
                     self._add_do_request(self._node)
             except ValueError as e:
@@ -196,6 +199,7 @@ class EtnyPoXClient:
                 
     def _add_do_request(self, node = '') -> None:
         CustomLock.acquire()
+        started_at = time.time()
         self._baseConfigs()
         self.__log(f"{datetime.now()} - Sending payload to IPFS...", 'message')
 
@@ -267,10 +271,11 @@ class EtnyPoXClient:
         # main loop
         self._wait_for_processor(
             do_request=do_request,
-            node_address = node_address
+            node_address = node_address,
+            started_at = started_at
         )
 
-    def _wait_for_processor(self, do_request, node_address) -> None:
+    def _wait_for_processor(self, do_request, node_address, started_at: int) -> None:
         self.__log(str(datetime.now())+ f" - Waiting for Ethernity network...", "message")
         order = None
         while True:
@@ -280,7 +285,7 @@ class EtnyPoXClient:
                 print('--------', str(e))
             if order is not None:
                 print("")
-                self.__log(f"{datetime.now()} - Connected! skipping approval", "info")
+                self.__log(f"{datetime.now()} - Connected!", "info")
 
                 # if self.__approve_order(order):
                 #     break
@@ -291,7 +296,7 @@ class EtnyPoXClient:
                     filesethash = self.__check_ipfs_upload(self.__fileset, True)
                     if scripthash is not None and filesethash is not None:
                         self.__log(f"{datetime.now()} - IPFS payload distribution confirmed!", "info")
-                if self.__get_result_from_order(order, node_address):
+                if self.__get_result_from_order(order, node_address, started_at):
                     break
             else:
                 time.sleep(5)   
@@ -336,7 +341,7 @@ class EtnyPoXClient:
             return True
         return False
 
-    def __get_result_from_order(self, order, node_address) -> bool:
+    def __get_result_from_order(self, order, node_address, started_at: int) -> bool:
         try:
             self.__log(f"{datetime.now()} - Waiting for task to finish...", "message")
         except Exception as e:
@@ -405,6 +410,7 @@ class EtnyPoXClient:
                                     resultblocktimestamp = (block['timestamp'])
                                     resultblockdatetime = datetime.fromtimestamp(resultblocktimestamp)
 
+                print()
                 cert_result = ""
                 try:
                     cert_result += self.__pre_suf(multiply=109, new_line=True)
@@ -434,12 +440,17 @@ class EtnyPoXClient:
                 self.__rPrintOutput(message = '')
                 if node_address:
                     self.__log(f"{datetime.now()} - Node Address: {node_address}", 'bold')
+                
+                self.__log(f"The Task took: {self.__display_date(int(time.time() - started_at))} to complete!")
                 self.__log(f"{datetime.now()} - Actual result of the processing is printed below this line", 'underline')
                 self.__rPrintOutput(message = '')
 
                 # result
                 self.__log(content, 'bold')
                 # result
+
+                self.__rPrintOutput(message=('-' * 10), repeats_count=1)
+                self.__rPrintOutput(message=('-' * 10), repeats_count=1)
 
                 if node_address:
                     self.__rPrintOutput(message=('-' * 10), repeats_count=1)
@@ -569,6 +580,17 @@ class EtnyPoXClient:
     def __is_address(self, address):
         return re.match(r'^(0x)?[0-9a-f]{40}$', address.lower())
 
+    @staticmethod
+    def __display_date(seconds):
+        try:
+            h = [str(seconds//3600), 'hours']
+            m = [str((seconds%3600)//60), 'minutes']
+            s = [str((seconds%3600)%60), 'seconds']
+            result = []
+            result = [" ".join(i) for i in [h, m, s] if int(i[0])]
+            return ", ".join(result)
+        except: 
+            return 0
         
 
 if __name__ == '__main__':
