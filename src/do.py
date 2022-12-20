@@ -115,12 +115,15 @@ class EtnyPoXClient:
         return os.path.join('.tmp', 'go-ipfs', 'ipfs')
 
     @property
+    def __get_nonce(self):
+        return self.__w3.eth.get_transaction_count(self._address)
+
+    @property
     def __transaction_object(self) -> object:
-        nonce = self.__w3.eth.get_transaction_count(self._address)
-        return {
+        return  {
             'gas': 1000000,
             'chainId': 8995,
-            'nonce': nonce,
+            'nonce': self.__get_nonce,
             'gasPrice': self.__w3.toWei("1", "mwei"),
         }
 
@@ -198,7 +201,7 @@ class EtnyPoXClient:
 
         self._scripthash = self.__upload_ipfs(self._script)
         self._filesethash = self.__upload_ipfs(self._fileset, True)
-
+        
         if ':' not in self._image:
             self._image += ':etny-pynithy'
 
@@ -219,16 +222,16 @@ class EtnyPoXClient:
         node_address = None
        
         _count = self._getDoRequestCount
-        unicorn_txn = self.__etny.functions._addDORequest(*_params).buildTransaction(self.__transaction_object)
+        transaction_object = self.__transaction_object
+        unicorn_txn = self.__etny.functions._addDORequest(*_params).buildTransaction(transaction_object)
         signed_txn = self.__w3.eth.account.sign_transaction(unicorn_txn, private_key=self.__acct.key)
         self.__w3.eth.sendRawTransaction(signed_txn.rawTransaction)
-        if self.isProcessing and self.isProcessing != None:
+        if self.isProcessing and self.isProcessing != None: 
             node_address = node
-            while _count == self._getDoRequestCount:
-                # print(f'waiting for addDoRequest: current_count = {_count}, doRequestCount = {self._getDoRequestCount}')
+            while _count == self._getDoRequestCount or transaction_object['nonce'] == self.__get_nonce:
                 time.sleep(.1)
             CustomLock.release()
-
+            
         transactionhash = self.__w3.toHex(self.__w3.sha3(signed_txn.rawTransaction))
        
         self.__log(str(datetime.now())+" - Submitting transaction for DO request", 'message')
@@ -565,6 +568,7 @@ class EtnyPoXClient:
 
     def __is_address(self, address):
         return re.match(r'^(0x)?[0-9a-f]{40}$', address.lower())
+
         
 
 if __name__ == '__main__':
