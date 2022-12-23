@@ -111,9 +111,6 @@ class EtnyPoXClient:
                     self._add_do_request(node = self._node)
             except ValueError as e:
                 raise Exception(e)
-
-        except KeyboardInterrupt:
-            self.log(message='....bye!', mode='error', hide_prefix=True)
         except Exception as e:
             self.log(message = str(e), mode='error')
 
@@ -224,6 +221,9 @@ class EtnyPoXClient:
         if ':' not in self._image:
             self._image += ':etny-pynithy'
 
+        if not nodes_count and len(node) and self.__is_address(node):
+            nodes_count = 1
+
         _params = [
             self._cpu, 
             self._memory, 
@@ -306,8 +306,10 @@ class EtnyPoXClient:
             except Exception as e:
                 print('--------', str(e), type(e))
             if order is not None:
-                print("")
                 self.log(f"{self.__get_current_date} - Connected!", "info")
+
+                if nodes_count == 0 and self.__approve_order(order):
+                    break
 
                 if self._redistribute is True and self.__local:
                     self.log(f"{self.__get_current_date} - Checking IPFS payload distribution...", "message")
@@ -320,14 +322,46 @@ class EtnyPoXClient:
             else:
                 time.sleep(5)   
     
-    def __find_order(self, doreq, nodes_count) -> Union[int, None]:
+    def __find_order(self, doreq, nodes_count: int) -> Union[int, None]:
         self.__sys_stdout(char='.')
         count = self.__etny.functions._getOrdersCount().call()
+        status = OrderStatus.PROCESSING if nodes_count > 0 else OrderStatus.OPEN
         for i in range(count - 1, (count - 5 - (nodes_count)), -1):
             order = self.__etny.caller()._getOrder(i)
-            if order[2] == doreq and order[4] == OrderStatus.PROCESSING:
+            if order[2] == doreq and order[4] == status:
                 return i
         return None
+
+    def __approve_order(self, order) -> bool:
+        for i in range(10):
+            print('---approval')
+        unicorn_txn = self.__etny.functions._approveOrder(order).buildTransaction(self.__transaction_object)
+
+        signed_txn = self.__w3.eth.account.sign_transaction(unicorn_txn, private_key=self.__acct.key)
+        self.__w3.eth.send_raw_transaction(signed_txn.rawTransaction)
+        transactionhash = self.__w3.toHex(self.__w3.sha3(signed_txn.rawTransaction))
+
+        receipt = None
+        for i in range(100):
+            try:
+                receipt = self.__w3.eth.wait_for_transaction_receipt(transactionhash)
+            except KeyError:
+                time.sleep(1)
+                continue
+            except TimeExhausted:
+                raise
+            except Exception as e:
+                print('erorr = ', e)
+                raise
+            else:
+                self.log(f"{datetime.now()} - Order {order} approved successfuly!" , 'info')
+                self.log(f"{datetime.now()} - TX Hash: {transactionhash}", 'message')
+                break
+
+        if receipt is None:
+            self.log(f"{datetime.now()} - Unable to approve order, please check connectivity with bloxberg node", "warning")
+            return True
+        return False
 
     def __get_result_from_order(self, order, node_address, started_at: int) -> bool:
         try:
