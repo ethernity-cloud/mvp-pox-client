@@ -380,11 +380,8 @@ class EtnyPoXClient:
                 if type(e) != ContractLogicError:
                     print(e, type(e), '-1')
                 self.__sys_stdout()
-                t = int(time.time() - started_at)
-                _iter += 1
-                _sleep = 5 + (_iter // 10)
-                print({self.__display_date(t)}, e, type(e), node_address, _sleep)
-                time.sleep(_sleep)
+                # print({self.__display_date(int(time.time() - started_at))}, e, type(e), node_address, _sleep)
+                time.sleep(5)
                 continue
             else:
                 self.__rPrintOutput(message = '', repeats_count=1)
