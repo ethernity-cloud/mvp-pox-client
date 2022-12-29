@@ -21,6 +21,8 @@ from web3.middleware import geth_poa_middleware
 from web3.exceptions import TimeExhausted, ContractLogicError
 from config import os, parser, arguments, bcolors
 from typing import Union
+from models import OrderStatus
+import re
 
 class EtnyPoXClient:
     # class variables
@@ -50,6 +52,7 @@ class EtnyPoXClient:
     _web3_provider = None
     _ipfs_cloud = None
     _node = ""
+    _node_is_provided = True
 
     def __init__(self):
         try:
@@ -113,6 +116,9 @@ class EtnyPoXClient:
                 value = os.environ.get(arg.upper()) if value in ['None', None] and os.environ.get(arg.upper()) else value
                 setattr(self, f"_{arg}", value)
         self.__local = self._ipfsgateway == ""
+        if not (self._node and self.__is_address(self._node)):
+            self._node_is_provided = False
+            self._node = ""
 
     def _baseConfigs(self) -> None:
         self.__w3 = Web3(Web3.HTTPProvider(self._web3_provider)) 
@@ -158,7 +164,7 @@ class EtnyPoXClient:
             self._filesethash, 
             self._node
         ]
-       
+
         unicorn_txn = self.__etny.functions._addDORequest(*_params).buildTransaction(self.__transaction_object)
         signed_txn = self.__w3.eth.account.sign_transaction(unicorn_txn, private_key=self.__acct.key)
         self.__w3.eth.sendRawTransaction(signed_txn.rawTransaction)
@@ -195,6 +201,7 @@ class EtnyPoXClient:
 
     def _wait_for_processor(self) -> None:
         self.__log(str(datetime.now())+ f" - Waiting for Ethernity network...", "message")
+        order = None
         while True:
             try:
                 order = self.__find_order(self.__dorequest)
@@ -203,7 +210,7 @@ class EtnyPoXClient:
             if order is not None:
                 print("")
                 self.__log(f"{datetime.now()} - Connected!", "info")
-                if self.__approve_order(order):
+                if self._node_is_provided == False and self.__approve_order(order):
                     break
 
                 if self._redistribute is True and self.__local:
@@ -221,9 +228,10 @@ class EtnyPoXClient:
     def __find_order(self, doreq) -> Union[int, None]:
         self.__sys_stdout()
         count = self.__etny.functions._getOrdersCount().call()
+        status = OrderStatus.PROCESSING if self._node_is_provided else OrderStatus.OPEN
         for i in range(count - 1, count - 5, -1):
             order = self.__etny.caller()._getOrder(i)
-            if order[2] == doreq and order[4] == 0:
+            if order[2] == doreq and order[4] == status:
                 return i
         return None
 
@@ -282,7 +290,6 @@ class EtnyPoXClient:
                 try_count = 0
                 while True:
                     try:
-                        print(f'..getting from: {result}')
                         self.__client.get(result)
                     except Exception as e:
                         print(e, type(e), '-2')
@@ -482,6 +489,9 @@ class EtnyPoXClient:
                     self.__get_ipfs_output_file_path('ipfsconnect.txt'))
         if log: print(cmd)
         os.system(cmd)
+
+    def __is_address(self, address):
+        return bool(re.match(r'^(0x)?[0-9a-f]{40}$', address.lower()))
 
 
 if __name__ == '__main__':
