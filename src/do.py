@@ -472,9 +472,6 @@ class EtnyPoXClient:
                 self.log(content, 'bold')
                 # result
 
-                self.__rPrintOutput(message=('-' * 10), repeats_count=1)
-                self.__rPrintOutput(message=('-' * 10), repeats_count=1)
-
                 if node_address:
                     self.__rPrintOutput(message=('-' * 10), repeats_count=1)
                     
