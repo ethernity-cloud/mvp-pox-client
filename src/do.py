@@ -102,7 +102,6 @@ class EtnyPoXClient:
                     started_at = time.time()
                     lock = Lock()
                     nodes_count = len(nodes)
-                    print(f'---nodes count = {nodes_count}')
                     with Pool(nodes_count, initializer=CustomLock, initargs=(lock,)) as p:
                         p.map(partial(self._add_do_request, nodes_count = nodes_count), nodes)
                     print('----------')
@@ -333,8 +332,6 @@ class EtnyPoXClient:
         return None
 
     def __approve_order(self, order) -> bool:
-        for i in range(10):
-            print('---approval')
         unicorn_txn = self.__etny.functions._approveOrder(order).buildTransaction(self.__transaction_object)
 
         signed_txn = self.__w3.eth.account.sign_transaction(unicorn_txn, private_key=self.__acct.key)
@@ -375,12 +372,10 @@ class EtnyPoXClient:
             try:
                 self.__etny.caller()._getOrder(order)
                 result = self.__etny.caller(transaction={'from': self._address})._getResultFromOrder(order)
-                print('error belongs to _getResultFromOrder....', order)
             except Exception as e:
                 if type(e) != ContractLogicError:
                     print(e, type(e), '-1')
                 self.__sys_stdout()
-                # print({self.__display_date(int(time.time() - started_at))}, e, type(e), node_address, _sleep)
                 time.sleep(5)
                 continue
             else:
@@ -530,7 +525,6 @@ class EtnyPoXClient:
             try:
                 return self.__client.add(file, recursive=recursive)
             except Exception as e:
-                print('error while adding to ipfs: ', e)
                 time.sleep(1)
                 continue
             except StatusError:
@@ -594,7 +588,6 @@ class EtnyPoXClient:
                                 self.__sys_stdout(char='#')
                                 return resultitem['Hash']
             except Exception as e:
-                print('error while processing ipfs result', e)
                 pass
             self.__sys_stdout()
             retries += 1
