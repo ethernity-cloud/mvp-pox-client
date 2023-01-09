@@ -599,7 +599,10 @@ class EtnyPoXClient:
         os.system(cmd)
 
     def __is_address(self, address):
-        return re.match(r'^(0x)?[0-9a-f]{40}$', address.lower())
+        result = re.match(r'^(0x)?[0-9a-f]{40}$', address.lower())
+        if not result:
+            self.log(f' Address "{address}" is invalid, skipping.', 'warning')
+        return bool(result)
 
     @staticmethod
     def __display_date(seconds):
