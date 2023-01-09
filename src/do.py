@@ -142,14 +142,17 @@ class EtnyPoXClient:
             if not self._node:
                 raise Exception('empty!')
             nodes = self._node
-            if not self.__is_address(nodes):
+            if not self.__is_address(nodes, display_error = False):
                 self._node = ''
                 if not os.path.exists(nodes):
                     raise Exception(f"The file named {nodes}, containing node addresses does not exist!")
                 with open(nodes) as r:
-                    nodes = list(set(x.strip() for x in r.read().splitlines() if self.__is_address(x)))[:MAXIMUM_NUMBER_OF_NODES]
+                    nodes = list(set(x.strip() for x in r.read().splitlines() if not x.startswith("#") and self.__is_address(x)))[:MAXIMUM_NUMBER_OF_NODES]
+                    print('nodes = ')
+                    print(nodes)
+                    print('nodes = ')
             elif ',' in nodes:
-                nodes = list(set(x.strip() for x in nodes.split(',') if self.__is_address(x)))[:MAXIMUM_NUMBER_OF_NODES]
+                nodes = list(set(x.strip() for x in nodes.split(',') if  not x.startswith("#") and self.__is_address(x)))[:MAXIMUM_NUMBER_OF_NODES]
             else:
                 raise Exception('')
             if len(nodes) > 1:
@@ -598,9 +601,9 @@ class EtnyPoXClient:
         if log: print(cmd)
         os.system(cmd)
 
-    def __is_address(self, address):
+    def __is_address(self, address, display_error = True):
         result = re.match(r'^(0x)?[0-9a-f]{40}$', address.lower())
-        if not result:
+        if display_error and not result:
             self.log(f' Address "{address}" is invalid, skipping.', 'warning')
         return bool(result)
 
