@@ -142,24 +142,21 @@ class EtnyPoXClient:
             if not self._node:
                 raise Exception('empty!')
             nodes = self._node
-            if not self.__is_address(nodes, display_error = False):
+            if nodes and ',' not in nodes and not self.__is_address(nodes, display_error = False):
                 self._node = ''
                 if not os.path.exists(nodes):
                     raise Exception(f"The file named {nodes}, containing node addresses does not exist!")
                 with open(nodes) as r:
                     nodes = list(set(x.strip()[:-1] if x.strip().endswith(',') else x.strip() for x in r.read().splitlines() if not x.startswith("#") and self.__is_address(x)))[:MAXIMUM_NUMBER_OF_NODES]
-                    print('nodes = ')
-                    print(nodes)
-                    print('nodes = ')
-            elif ',' in nodes:
+            if ',' in nodes:
                 nodes = list(set(x.strip()[:-1] if x.strip().endswith(',') else x.strip() for x in nodes.split(',') if  not x.startswith("#") and self.__is_address(x)))[:MAXIMUM_NUMBER_OF_NODES]
-            else:
-                raise Exception('')
-            if len(nodes) > 1:
+            
+            if len(nodes) and type(nodes) != str:
                 return nodes
             else:
-                self._node = nodes[0]
-        except Exception as e:
+                self._node = nodes[0] if type(nodes) == 0 else nodes
+
+        except Exception as ex:
             pass
 
         return None
@@ -212,7 +209,6 @@ class EtnyPoXClient:
                 
     def _add_do_request(self, node = '', nodes_count = 0) -> None:
         
-
         started_at = time.time()
         self._baseConfigs()
         self.log(f"{self.__get_current_date} - Sending payload to IPFS...", 'message')
